@@ -35,6 +35,9 @@ export interface Goal {
   monthlyReview?: string;
   achievementUnlocked?: boolean;
   createdAt?: string;
+  categoryColor?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
 }
 
 export type TaskColumn = 'todo' | 'in-progress' | 'completed';

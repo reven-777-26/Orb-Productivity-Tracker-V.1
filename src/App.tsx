@@ -203,6 +203,33 @@ function FocusAuraOverlay() {
   );
 }
 
+function getCategoryColorStyles(colorHex?: string, categoryName?: string) {
+  const defaultColors: Record<string, string> = {
+    'Career': '#8b5cf6', // purple
+    'Health': '#10b981', // green
+    'Finance': '#3b82f6', // blue
+    'Business': '#6366f1', // indigo
+    'Learning': '#f97316', // orange
+    'Personal': '#ec4899'  // pink
+  };
+  
+  const hex = colorHex || (categoryName ? defaultColors[categoryName] : null) || '#8b5cf6';
+  
+  let r = 139, g = 92, b = 246;
+  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (match) {
+    r = parseInt(match[1], 16);
+    g = parseInt(match[2], 16);
+    b = parseInt(match[3], 16);
+  }
+  
+  return {
+    color: `rgb(${r}, ${g}, ${b})`,
+    background: `rgba(${r}, ${g}, ${b}, 0.12)`,
+    border: `1px solid rgba(${r}, ${g}, ${b}, 0.3)`
+  };
+}
+
 // =============================================================
 // MAIN SYSTEM APP: STANDARD WORKSPACE
 // =============================================================
@@ -244,6 +271,7 @@ function MainDashboardApp() {
   // Goals state
   const [selectedMonth] = useState<Month>('June');
   const [newGoalCategory, setNewGoalCategory] = useState('Career');
+  const [newGoalCategoryColor, setNewGoalCategoryColor] = useState('#8b5cf6');
   const [isAddGoalModalOpen, setIsAddGoalModalOpen] = useState(false);
   const [newGoalMilestones, setNewGoalMilestones] = useState<string[]>([]);
   const [newMilestoneText, setNewMilestoneText] = useState('');
@@ -252,6 +280,10 @@ function MainDashboardApp() {
   const [goalFilterStatus, setGoalFilterStatus] = useState<string>('All');
   const [isCustomCategoryActive, setIsCustomCategoryActive] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState('');
+  const [newGoalTitle, setNewGoalTitle] = useState('');
+  const [newGoalDeadline, setNewGoalDeadline] = useState('');
+  const [newGoalNotes, setNewGoalNotes] = useState('');
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
 
   // Tasks state
   const [taskSearch, setTaskSearch] = useState('');
@@ -835,38 +867,70 @@ function MainDashboardApp() {
 
   const handleCreateGoal = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.currentTarget as HTMLFormElement;
-    const title = (form.elements.namedItem('title') as HTMLInputElement).value;
-    const category = isCustomCategoryActive ? customCategoryInput : (form.elements.namedItem('category') as HTMLSelectElement).value;
-    const deadline = (form.elements.namedItem('deadline') as HTMLInputElement).value;
-    const notes = (form.elements.namedItem('notes') as HTMLTextAreaElement).value;
+    const category = isCustomCategoryActive ? customCategoryInput : newGoalCategory;
 
-    if (!title || !category) return;
+    if (!newGoalTitle || !category) return;
 
-    const newGoal: Goal = {
-      id: Math.random().toString(),
-      title,
-      month: 'June',
-      status: 'Not Started',
-      progress: 0,
-      isPinned: false,
-      deadline: deadline || new Date().toISOString().split('T')[0],
-      category,
-      notes,
-      milestones: newGoalMilestones.map((m, idx) => ({ id: `${Math.random()}_${idx}`, title: m, completed: false })),
-      createdAt: new Date().toISOString()
-    };
+    if (editingGoalId) {
+      updateState((prev) => {
+        const goals = prev.goals.map((g) => {
+          if (g.id === editingGoalId) {
+            const milestones = newGoalMilestones.map((m, idx) => {
+              const existing = g.milestones.find(em => em.title === m);
+              return existing || { id: `${Math.random()}_${idx}`, title: m, completed: false };
+            });
+            const compCount = milestones.filter(ms => ms.completed).length;
+            const progress = milestones.length > 0 ? Math.round((compCount / milestones.length) * 100) : g.progress;
+            const status = (progress === 100 ? 'Completed' : progress > 0 ? 'In Progress' : 'Not Started') as GoalStatus;
+            
+            return {
+              ...g,
+              title: newGoalTitle,
+              category,
+              categoryColor: newGoalCategoryColor,
+              deadline: newGoalDeadline || new Date().toISOString().split('T')[0],
+              notes: newGoalNotes,
+              milestones,
+              progress,
+              status
+            };
+          }
+          return g;
+        });
+        return { ...prev, goals };
+      });
+    } else {
+      const newGoal: Goal = {
+        id: Math.random().toString(),
+        title: newGoalTitle,
+        month: 'June',
+        status: 'Not Started',
+        progress: 0,
+        isPinned: false,
+        deadline: newGoalDeadline || new Date().toISOString().split('T')[0],
+        category,
+        categoryColor: newGoalCategoryColor,
+        notes: newGoalNotes,
+        milestones: newGoalMilestones.map((m, idx) => ({ id: `${Math.random()}_${idx}`, title: m, completed: false })),
+        createdAt: new Date().toISOString()
+      };
 
-    updateState((prev) => ({
-      ...prev,
-      goals: [newGoal, ...prev.goals]
-    }));
+      updateState((prev) => ({
+        ...prev,
+        goals: [newGoal, ...prev.goals]
+      }));
+    }
 
     setIsAddGoalModalOpen(false);
+    setEditingGoalId(null);
+    setNewGoalTitle('');
+    setNewGoalDeadline('');
+    setNewGoalNotes('');
     setNewGoalMilestones([]);
     setNewMilestoneText('');
     setCustomCategoryInput('');
     setIsCustomCategoryActive(false);
+    setNewGoalCategoryColor('#8b5cf6');
   };
 
   // Finance Actions
@@ -1172,8 +1236,37 @@ function MainDashboardApp() {
                               }}></span>
                               <span style={{ fontWeight: 500 }}>{task.title}</span>
                             </div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', marginLeft: '16px' }}>
-                              Due: {task.dueDate} | Est: {task.estTime} mins
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px', marginLeft: '16px' }}>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                color: '#e5e7eb',
+                                padding: '4px 8px',
+                                borderRadius: '6px'
+                              }}>
+                                <Calendar size={12} style={{ color: 'var(--color-purple-light)' }} />
+                                <span>Due: {task.dueDate}</span>
+                              </span>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                color: '#e5e7eb',
+                                padding: '4px 8px',
+                                borderRadius: '6px'
+                              }}>
+                                <Clock size={12} style={{ color: 'var(--color-purple-light)' }} />
+                                <span>Est: {task.estTime}m</span>
+                              </span>
                             </div>
                           </div>
                           <button className="glass-button" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => toggleTaskTimeTracking(task.id)}>
@@ -1196,7 +1289,7 @@ function MainDashboardApp() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {state.goals.filter(g => g.month === selectedMonth).slice(0, 3).map((goal) => (
+                      {state.goals.filter(g => g.month === selectedMonth && !g.isDeleted).slice(0, 3).map((goal) => (
                         <div key={goal.id}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '6px' }}>
                             <span style={{ fontWeight: 500 }}>{goal.title}</span>
@@ -1296,7 +1389,7 @@ function MainDashboardApp() {
                     style={{ color: '#fff', padding: '6px 12px' }}
                   >
                     <option value="All">All Categories</option>
-                    {Array.from(new Set(state.goals.map(g => g.category))).map((cat) => (
+                    {Array.from(new Set(state.goals.filter(g => !g.isDeleted).map(g => g.category))).map((cat) => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
@@ -1324,6 +1417,7 @@ function MainDashboardApp() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {(() => {
                     const filtered = state.goals.filter(goal => {
+                      if (goal.isDeleted) return false;
                       const categoryMatch = goalFilterCategory === 'All' || goal.category === goalFilterCategory;
                       const statusMatch = goalFilterStatus === 'All' || goal.status === goalFilterStatus;
                       return categoryMatch && statusMatch;
@@ -1358,15 +1452,83 @@ function MainDashboardApp() {
                               <h3 style={{ textDecoration: goal.status === 'Completed' ? 'line-through' : 'none', color: goal.status === 'Completed' ? 'var(--text-secondary)' : '#fff' }}>
                                 {goal.title}
                               </h3>
-                              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                                <span style={{ fontSize: '11px', background: 'rgba(139,92,246,0.15)', color: 'var(--color-purple-light)', padding: '2px 8px', borderRadius: '10px' }}>{goal.category}</span>
-                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Deadline: {goal.deadline}</span>
-                                {goal.achievementUnlocked && <span style={{ fontSize: '11px', color: '#10b981' }}>🏆 Achieved</span>}
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                                {(() => {
+                                  const cStyles = getCategoryColorStyles(goal.categoryColor, goal.category);
+                                  return (
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      fontSize: '12px',
+                                      fontWeight: 600,
+                                      background: cStyles.background,
+                                      border: cStyles.border,
+                                      color: cStyles.color,
+                                      padding: '4px 10px',
+                                      borderRadius: '6px'
+                                    }}>
+                                      <Award size={12} />
+                                      <span>{goal.category}</span>
+                                    </span>
+                                  );
+                                })()}
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: 500,
+                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                                  color: '#e5e7eb',
+                                  padding: '4px 10px',
+                                  borderRadius: '6px'
+                                }}>
+                                  <Calendar size={12} style={{ color: 'var(--color-purple-light)' }} />
+                                  <span>Deadline: {goal.deadline}</span>
+                                </span>
+                                {goal.achievementUnlocked && (
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    background: 'rgba(16, 185, 129, 0.15)',
+                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                    color: '#10b981',
+                                    padding: '4px 10px',
+                                    borderRadius: '6px'
+                                  }}>
+                                    <span>🏆 Achieved</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
                           
                           <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="glass-button" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => {
+                              setEditingGoalId(goal.id);
+                              setNewGoalTitle(goal.title);
+                              setNewGoalCategory(goal.category);
+                              setNewGoalCategoryColor(goal.categoryColor || '#8b5cf6');
+                              setNewGoalDeadline(goal.deadline);
+                              setNewGoalNotes(goal.notes);
+                              setNewGoalMilestones(goal.milestones.map(m => m.title));
+                              
+                              const presets = ['Career', 'Health', 'Finance', 'Business', 'Learning', 'Personal'];
+                              if (!presets.includes(goal.category)) {
+                                setIsCustomCategoryActive(true);
+                                setCustomCategoryInput(goal.category);
+                              } else {
+                                setIsCustomCategoryActive(false);
+                              }
+                              setIsAddGoalModalOpen(true);
+                            }}>
+                              Edit
+                            </button>
                             <button className="glass-button" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => {
                               updateState((prev) => {
                                 const goals = prev.goals.map((g) => {
@@ -1381,9 +1543,14 @@ function MainDashboardApp() {
                             <button className="glass-button" style={{ padding: '6px', background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' }} onClick={() => {
                               updateState((prev) => ({
                                 ...prev,
-                                goals: prev.goals.filter((g) => g.id !== goal.id)
+                                goals: prev.goals.map((g) => {
+                                  if (g.id === goal.id) {
+                                    return { ...g, isDeleted: true, deletedAt: new Date().toISOString() };
+                                  }
+                                  return g;
+                                })
                               }));
-                            }}>
+                            }} title="Delete Goal">
                               <Trash size={12} style={{ color: '#ef4444' }} />
                             </button>
                           </div>
@@ -1446,11 +1613,23 @@ function MainDashboardApp() {
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
-                          <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${goal.progress}%`, background: 'var(--color-purple)' }} />
+                        <div style={{
+                          marginTop: '16px',
+                          padding: '12px 16px',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Goal Progress</span>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-purple-light)' }}>{goal.progress}%</span>
                           </div>
-                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', width: '32px' }}>{goal.progress}%</span>
+                          <div style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${goal.progress}%`, background: 'linear-gradient(90deg, var(--color-purple), var(--color-pink))', borderRadius: '4px' }}></div>
+                          </div>
                         </div>
                       </div>
                     ));
@@ -1472,12 +1651,13 @@ function MainDashboardApp() {
                       className="glass-input" 
                       placeholder="Write your general life goals review and reflections here..." 
                       style={{ height: '140px', width: '100%', resize: 'none', fontSize: '13px' }}
-                      value={state.goals[0]?.monthlyReview || ''}
+                      value={state.goals.find(g => !g.isDeleted)?.monthlyReview || ''}
                       onChange={(e) => {
                         const val = e.target.value;
                         updateState((prev) => {
-                          const goals = prev.goals.map((g, idx) => {
-                            if (idx === 0) {
+                          const firstActive = prev.goals.find(g => !g.isDeleted);
+                          const goals = prev.goals.map((g) => {
+                            if (firstActive && g.id === firstActive.id) {
                               return { ...g, monthlyReview: val };
                             }
                             return g;
@@ -1491,7 +1671,7 @@ function MainDashboardApp() {
                   <div className="glass-panel" style={{ padding: '24px' }}>
                     <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Achieved Goals History</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {state.goals.filter(g => g.status === 'Completed').map((goal) => (
+                      {state.goals.filter(g => g.status === 'Completed' && !g.isDeleted).map((goal) => (
                         <div key={goal.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
                           <Award size={20} style={{ color: 'var(--color-completed)' }} />
                           <div style={{ flex: 1 }}>
@@ -1500,8 +1680,55 @@ function MainDashboardApp() {
                           </div>
                         </div>
                       ))}
-                      {state.goals.filter(g => g.status === 'Completed').length === 0 && (
+                      {state.goals.filter(g => g.status === 'Completed' && !g.isDeleted).length === 0 && (
                         <div style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>No achieved goals yet. Finish a goal to populate your achievements!</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Deleted Goals History */}
+                  <div className="glass-panel" style={{ padding: '24px', marginTop: '20px' }}>
+                    <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Deleted Goals History</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {state.goals.filter(g => g.isDeleted).map((goal) => (
+                        <div key={goal.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255, 255, 255, 0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 500, color: '#fff' }}>{goal.title}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Category: {goal.category}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button
+                              className="glass-button"
+                              style={{ padding: '4px 8px', fontSize: '11px', background: 'rgba(139, 92, 246, 0.1)', borderColor: 'rgba(139, 92, 246, 0.2)' }}
+                              onClick={() => {
+                                updateState((prev) => ({
+                                  ...prev,
+                                  goals: prev.goals.map((g) => {
+                                    if (g.id === goal.id) return { ...g, isDeleted: false };
+                                    return g;
+                                  })
+                                }));
+                              }}
+                            >
+                              Restore
+                            </button>
+                            <button
+                              className="glass-button"
+                              style={{ padding: '4px 8px', fontSize: '11px', background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+                              onClick={() => {
+                                updateState((prev) => ({
+                                  ...prev,
+                                  goals: prev.goals.filter((g) => g.id !== goal.id)
+                                }));
+                              }}
+                            >
+                              Delete Permanently
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {state.goals.filter(g => g.isDeleted).length === 0 && (
+                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>No deleted goals.</div>
                       )}
                     </div>
                   </div>
@@ -1526,6 +1753,7 @@ function MainDashboardApp() {
                         setNewMilestoneText('');
                         setIsCustomCategoryActive(false);
                         setCustomCategoryInput('');
+                        setNewGoalCategoryColor('#8b5cf6');
                       }}>
                         <X size={18} />
                       </button>
@@ -1534,7 +1762,7 @@ function MainDashboardApp() {
                     <form onSubmit={handleCreateGoal} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div>
                         <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Goal Title</label>
-                        <input name="title" type="text" placeholder="Goal Title..." required className="glass-input" style={{ width: '100%' }} />
+                        <input name="title" type="text" placeholder="Goal Title..." required className="glass-input" style={{ width: '100%' }} value={newGoalTitle} onChange={(e) => setNewGoalTitle(e.target.value)} />
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1566,7 +1794,40 @@ function MainDashboardApp() {
                         </div>
                         <div>
                           <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Deadline</label>
-                          <input name="deadline" type="date" className="glass-input" style={{ color: '#ffffff', width: '100%' }} required />
+                          <input name="deadline" type="date" className="glass-input" style={{ color: '#ffffff', width: '100%' }} required value={newGoalDeadline} onChange={(e) => setNewGoalDeadline(e.target.value)} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Category Color</label>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {[
+                            { name: 'Purple', hex: '#8b5cf6' },
+                            { name: 'Cyan', hex: '#06b6d4' },
+                            { name: 'Magenta', hex: '#d946ef' },
+                            { name: 'Green', hex: '#10b981' },
+                            { name: 'Red', hex: '#ef4444' },
+                            { name: 'Orange', hex: '#f97316' },
+                            { name: 'Yellow', hex: '#eab308' },
+                            { name: 'Blue', hex: '#3b82f6' }
+                          ].map((c) => (
+                            <button
+                              key={c.hex}
+                              type="button"
+                              onClick={() => setNewGoalCategoryColor(c.hex)}
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                background: c.hex,
+                                border: newGoalCategoryColor === c.hex ? '2px solid #ffffff' : '2px solid transparent',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                boxShadow: newGoalCategoryColor === c.hex ? '0 0 10px ' + c.hex : 'none'
+                              }}
+                              title={c.name}
+                            />
+                          ))}
                         </div>
                       </div>
 
@@ -1587,7 +1848,7 @@ function MainDashboardApp() {
 
                       <div>
                         <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Description / Notes</label>
-                        <textarea name="notes" placeholder="Goal notes / description..." className="glass-input" style={{ height: '70px', resize: 'none', width: '100%' }}></textarea>
+                        <textarea name="notes" placeholder="Goal notes / description..." className="glass-input" style={{ height: '70px', resize: 'none', width: '100%' }} value={newGoalNotes} onChange={(e) => setNewGoalNotes(e.target.value)}></textarea>
                       </div>
 
                       {/* Staging Milestones */}
@@ -1634,12 +1895,17 @@ function MainDashboardApp() {
                       <div style={{ display: 'flex', gap: '12px', marginTop: '12px', justifyContent: 'flex-end' }}>
                         <button type="button" className="glass-button" onClick={() => {
                           setIsAddGoalModalOpen(false);
+                          setEditingGoalId(null);
+                          setNewGoalTitle('');
+                          setNewGoalDeadline('');
+                          setNewGoalNotes('');
                           setNewGoalMilestones([]);
                           setNewMilestoneText('');
                           setIsCustomCategoryActive(false);
                           setCustomCategoryInput('');
+                          setNewGoalCategoryColor('#8b5cf6');
                         }}>Cancel</button>
-                        <button type="submit" className="glass-button active">Create Goal</button>
+                        <button type="submit" className="glass-button active">{editingGoalId ? 'Save Changes' : 'Create Goal'}</button>
                       </div>
                     </form>
                   </div>
@@ -1715,24 +1981,52 @@ function MainDashboardApp() {
                         className="glass-card" 
                         style={{ padding: '14px', cursor: 'grab' }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                           <span style={{
-                            fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
+                            fontSize: '12px', padding: '4px 8px', borderRadius: '6px',
                             background: task.priority === 'Critical' ? 'rgba(239,68,68,0.2)' : task.priority === 'High' ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)',
-                            color: task.priority === 'Critical' ? 'red' : task.priority === 'High' ? 'orange' : 'green',
+                            color: task.priority === 'Critical' ? '#ef4444' : task.priority === 'High' ? '#f59e0b' : '#10b981',
+                            border: task.priority === 'Critical' ? '1px solid rgba(239,68,68,0.4)' : task.priority === 'High' ? '1px solid rgba(245,158,11,0.4)' : '1px solid rgba(16,185,129,0.4)',
                             fontWeight: 600
                           }}>
                             {task.priority}
                           </span>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Est: {task.estTime}m</span>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            color: '#e5e7eb',
+                            padding: '4px 8px',
+                            borderRadius: '6px'
+                          }}>
+                            <Clock size={12} style={{ color: 'var(--color-purple-light)' }} />
+                            <span>Est: {task.estTime}m</span>
+                          </span>
                         </div>
-                        <h4 style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>{task.title}</h4>
+                        <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px', color: '#fff' }}>{task.title}</h4>
                         
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
-                          <span>Due: {task.dueDate}</span>
-                          <div style={{ display: 'flex', gap: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '12px',
+                            color: '#e5e7eb',
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            padding: '3px 8px',
+                            borderRadius: '6px'
+                          }}>
+                            <Calendar size={11} style={{ color: 'var(--color-purple-light)' }} />
+                            <span>Due: {task.dueDate}</span>
+                          </span>
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                             {task.tags.map((tg, i) => (
-                              <span key={i} style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 4px', borderRadius: '2px' }}>{tg}</span>
+                              <span key={i} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: 'var(--color-purple-light)', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>{tg}</span>
                             ))}
                           </div>
                         </div>
@@ -1770,24 +2064,52 @@ function MainDashboardApp() {
                           boxShadow: task.priority === 'Critical' ? '0 0 10px rgba(239, 68, 68, 0.2)' : undefined
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                           <span style={{
-                            fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
+                            fontSize: '12px', padding: '4px 8px', borderRadius: '6px',
                             background: task.priority === 'Critical' ? 'rgba(239,68,68,0.2)' : task.priority === 'High' ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)',
-                            color: task.priority === 'Critical' ? 'red' : task.priority === 'High' ? 'orange' : 'green',
+                            color: task.priority === 'Critical' ? '#ef4444' : task.priority === 'High' ? '#f59e0b' : '#10b981',
+                            border: task.priority === 'Critical' ? '1px solid rgba(239,68,68,0.4)' : task.priority === 'High' ? '1px solid rgba(245,158,11,0.4)' : '1px solid rgba(16,185,129,0.4)',
                             fontWeight: 600
                           }}>
                             {task.priority}
                           </span>
-                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Tracked: {task.spentTime}m</span>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            color: '#e5e7eb',
+                            padding: '4px 8px',
+                            borderRadius: '6px'
+                          }}>
+                            <Clock size={12} style={{ color: 'var(--color-purple-light)' }} />
+                            <span>Tracked: {task.spentTime}m</span>
+                          </span>
                         </div>
-                        <h4 style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>{task.title}</h4>
+                        <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px', color: '#fff' }}>{task.title}</h4>
                         
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Due: {task.dueDate}</span>
-                          <button className="glass-button" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => toggleTaskTimeTracking(task.id)}>
-                            {trackingTaskId === task.id ? <Pause size={10} /> : <Play size={10} />}
-                            {trackingTaskId === task.id ? 'Tracking' : 'Track'}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '12px',
+                            color: '#e5e7eb',
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            padding: '3px 8px',
+                            borderRadius: '6px'
+                          }}>
+                            <Calendar size={11} style={{ color: 'var(--color-purple-light)' }} />
+                            <span>Due: {task.dueDate}</span>
+                          </span>
+                          <button className="glass-button" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => toggleTaskTimeTracking(task.id)}>
+                            {trackingTaskId === task.id ? <Pause size={12} /> : <Play size={12} />}
+                            <span style={{ marginLeft: '4px' }}>{trackingTaskId === task.id ? 'Tracking' : 'Track'}</span>
                           </button>
                         </div>
                       </div>
@@ -1818,9 +2140,17 @@ function MainDashboardApp() {
                         className="glass-card" 
                         style={{ padding: '14px', cursor: 'grab', opacity: 0.65 }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--color-completed)', fontWeight: 600 }}>Completed</span>
-                          <button className="glass-button" style={{ padding: '2px 6px', fontSize: '10px' }} onClick={() => {
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <span style={{
+                            fontSize: '12px', padding: '4px 8px', borderRadius: '6px',
+                            background: 'rgba(16,185,129,0.15)',
+                            color: '#10b981',
+                            border: '1px solid rgba(16,185,129,0.3)',
+                            fontWeight: 600
+                          }}>
+                            Completed
+                          </span>
+                          <button className="glass-button" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => {
                             updateState((prev) => {
                               const tasks = prev.tasks.map((t) => {
                                 if (t.id === task.id) return { ...t, isArchived: true };
@@ -1830,8 +2160,11 @@ function MainDashboardApp() {
                             });
                           }}>Archive</button>
                         </div>
-                        <h4 style={{ fontSize: '14px', fontWeight: 500, textDecoration: 'line-through' }}>{task.title}</h4>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>Total Time: {task.spentTime} mins</div>
+                        <h4 style={{ fontSize: '15px', fontWeight: 500, textDecoration: 'line-through', marginBottom: '12px', color: 'var(--text-secondary)' }}>{task.title}</h4>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#e5e7eb', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '6px' }}>
+                          <Clock size={12} style={{ color: 'var(--color-purple-light)' }} />
+                          <span>Total Time: {task.spentTime} mins</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2061,8 +2394,48 @@ function MainDashboardApp() {
                       <div key={r.id} className="glass-card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <div style={{ fontWeight: 500, fontSize: '15px' }}>"{r.message}"</div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                            Time: {r.time} | Type: <span style={{ textTransform: 'capitalize' }}>{r.type}</span> | Category: {r.category}
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '12px',
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              color: '#e5e7eb',
+                              padding: '3px 8px',
+                              borderRadius: '6px'
+                            }}>
+                              <Clock size={11} style={{ color: 'var(--color-purple-light)' }} />
+                              <span>Time: {r.time}</span>
+                            </span>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '12px',
+                              background: 'rgba(139,92,246,0.15)',
+                              border: '1px solid rgba(139,92,246,0.3)',
+                              color: 'var(--color-purple-light)',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              textTransform: 'capitalize'
+                            }}>
+                              <span>Type: {r.type}</span>
+                            </span>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '12px',
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              color: '#e5e7eb',
+                              padding: '3px 8px',
+                              borderRadius: '6px'
+                            }}>
+                              <span>Category: {r.category}</span>
+                            </span>
                           </div>
                         </div>
 
@@ -2251,9 +2624,49 @@ function MainDashboardApp() {
                         <div key={rec.id} className="glass-card" style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div>
                             <div style={{ fontWeight: 500 }}>{rec.title}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                              Date: {rec.date} | Category: {rec.category}
-                              {rec.targetAmount ? ` | Target: $${rec.targetAmount.toLocaleString()} (${rec.targetMonth})` : ''}
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '12px',
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                color: '#e5e7eb',
+                                padding: '3px 8px',
+                                borderRadius: '6px'
+                              }}>
+                                <Calendar size={11} style={{ color: 'var(--color-purple-light)' }} />
+                                <span>Date: {rec.date}</span>
+                              </span>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '12px',
+                                background: 'rgba(139,92,246,0.15)',
+                                border: '1px solid rgba(139,92,246,0.3)',
+                                color: 'var(--color-purple-light)',
+                                padding: '3px 8px',
+                                borderRadius: '6px'
+                              }}>
+                                <span>Category: {rec.category}</span>
+                              </span>
+                              {rec.targetAmount && (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '12px',
+                                  background: 'rgba(96,165,250,0.15)',
+                                  border: '1px solid rgba(96,165,250,0.3)',
+                                  color: '#60a5fa',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px'
+                                }}>
+                                  <span>Target: ${rec.targetAmount.toLocaleString()} ({rec.targetMonth})</span>
+                                </span>
+                              )}
                             </div>
                           </div>
                           <span style={{ 
