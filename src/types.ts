@@ -29,11 +29,12 @@ export interface Goal {
   progress: number; // 0 to 100
   isPinned: boolean;
   deadline: string;
-  category: GoalCategory;
+  category: string;
   notes: string;
   milestones: Milestone[];
   monthlyReview?: string;
   achievementUnlocked?: boolean;
+  createdAt?: string;
 }
 
 export type TaskColumn = 'todo' | 'in-progress' | 'completed';

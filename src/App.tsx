@@ -5,7 +5,7 @@ import {
   ShieldAlert, Sparkles, TrendingUp, Volume2, X, Play, Pause,
   RotateCcw, Coffee, ShieldCheck, ChevronRight, Search, Trash
 } from 'lucide-react';
-import type { Month, Goal, GoalCategory, GoalStatus, Task, TaskColumn, VoiceReminder, FocusSession, FocusSessionType, Note, FinanceRecord, AppSettings, AppState } from './types';
+import type { Month, Goal, GoalStatus, Task, TaskColumn, VoiceReminder, FocusSession, FocusSessionType, Note, FinanceRecord, AppSettings, AppState } from './types';
 import { loadState, saveState } from './utils/storage';
 import { speakText, stopSpeaking, getAvailableVoices } from './utils/tts';
 
@@ -242,7 +242,16 @@ function MainDashboardApp() {
   const [noteEditCategory, setNoteEditCategory] = useState('Inbox');
 
   // Goals state
-  const [selectedMonth, setSelectedMonth] = useState<Month>('June');
+  const [selectedMonth] = useState<Month>('June');
+  const [newGoalCategory, setNewGoalCategory] = useState('Career');
+  const [isAddGoalModalOpen, setIsAddGoalModalOpen] = useState(false);
+  const [newGoalMilestones, setNewGoalMilestones] = useState<string[]>([]);
+  const [newMilestoneText, setNewMilestoneText] = useState('');
+  const [goalSortOption, setGoalSortOption] = useState<'recently-added' | 'deadline' | 'status' | 'category'>('recently-added');
+  const [goalFilterCategory, setGoalFilterCategory] = useState<string>('All');
+  const [goalFilterStatus, setGoalFilterStatus] = useState<string>('All');
+  const [isCustomCategoryActive, setIsCustomCategoryActive] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
 
   // Tasks state
   const [taskSearch, setTaskSearch] = useState('');
@@ -824,6 +833,42 @@ function MainDashboardApp() {
     });
   };
 
+  const handleCreateGoal = (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.currentTarget as HTMLFormElement;
+    const title = (form.elements.namedItem('title') as HTMLInputElement).value;
+    const category = isCustomCategoryActive ? customCategoryInput : (form.elements.namedItem('category') as HTMLSelectElement).value;
+    const deadline = (form.elements.namedItem('deadline') as HTMLInputElement).value;
+    const notes = (form.elements.namedItem('notes') as HTMLTextAreaElement).value;
+
+    if (!title || !category) return;
+
+    const newGoal: Goal = {
+      id: Math.random().toString(),
+      title,
+      month: 'June',
+      status: 'Not Started',
+      progress: 0,
+      isPinned: false,
+      deadline: deadline || new Date().toISOString().split('T')[0],
+      category,
+      notes,
+      milestones: newGoalMilestones.map((m, idx) => ({ id: `${Math.random()}_${idx}`, title: m, completed: false })),
+      createdAt: new Date().toISOString()
+    };
+
+    updateState((prev) => ({
+      ...prev,
+      goals: [newGoal, ...prev.goals]
+    }));
+
+    setIsAddGoalModalOpen(false);
+    setNewGoalMilestones([]);
+    setNewMilestoneText('');
+    setCustomCategoryInput('');
+    setIsCustomCategoryActive(false);
+  };
+
   // Finance Actions
   const handleAddFinance = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1207,209 +1252,232 @@ function MainDashboardApp() {
           )}
 
           {/* =======================================================
-              2. MONTHLY GOALS VIEW
+              2. GOALS VIEW
               ======================================================= */}
           {activeTab === 'goals' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h2 style={{ fontSize: '32px', fontWeight: 700 }}>Monthly Goals Dashboard</h2>
-                  <p>Create and align your life-long achievements grouped by monthly intervals.</p>
+                  <h2 style={{ fontSize: '32px', fontWeight: 700 }}>Goals</h2>
+                  <p>Create and align your life-long goals to maximize your daily potential.</p>
                 </div>
+                <button 
+                  className="glass-button" 
+                  style={{ background: 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-pink) 100%)', color: '#fff', border: 'none' }}
+                  onClick={() => setIsAddGoalModalOpen(true)}
+                >
+                  <Plus size={16} /> Add a Goal
+                </button>
               </div>
 
-              {/* Month selector */}
-              <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-glass-purple)', paddingBottom: '12px', overflowX: 'auto' }}>
-                {(['June', 'July', 'August', 'September', 'October', 'November', 'December'] as Month[]).map((m) => (
-                  <button 
-                    key={m} 
-                    className={`glass-button ${selectedMonth === m ? 'active' : ''}`}
-                    onClick={() => setSelectedMonth(m)}
-                    style={{ border: 'none', background: selectedMonth === m ? undefined : 'transparent' }}
+              {/* Controls bar: Filtering & Sorting */}
+              <div className="glass-panel" style={{ padding: '16px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Sort by:</span>
+                  <select 
+                    value={goalSortOption} 
+                    onChange={(e) => setGoalSortOption(e.target.value as any)} 
+                    className="glass-input" 
+                    style={{ color: '#fff', padding: '6px 12px' }}
                   >
-                    {m}
-                  </button>
-                ))}
+                    <option value="recently-added">Recently Added</option>
+                    <option value="deadline">Date (Deadline)</option>
+                    <option value="status">Status</option>
+                    <option value="category">Category</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Filter Category:</span>
+                  <select 
+                    value={goalFilterCategory} 
+                    onChange={(e) => setGoalFilterCategory(e.target.value)} 
+                    className="glass-input" 
+                    style={{ color: '#fff', padding: '6px 12px' }}
+                  >
+                    <option value="All">All Categories</option>
+                    {Array.from(new Set(state.goals.map(g => g.category))).map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Filter Status:</span>
+                  <select 
+                    value={goalFilterStatus} 
+                    onChange={(e) => setGoalFilterStatus(e.target.value)} 
+                    className="glass-input" 
+                    style={{ color: '#fff', padding: '6px 12px' }}
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Not Started">Not Started</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
                 
                 {/* Goals lists */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {state.goals.filter(g => g.month === selectedMonth).map((goal) => (
-                    <div key={goal.id} className="glass-panel" style={{ padding: '20px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={goal.status === 'Completed'} 
-                            onChange={() => toggleGoalStatus(goal.id)}
-                            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                          />
-                          <div>
-                            <h3 style={{ textDecoration: goal.status === 'Completed' ? 'line-through' : 'none', color: goal.status === 'Completed' ? 'var(--text-secondary)' : '#fff' }}>
-                              {goal.title}
-                            </h3>
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                              <span style={{ fontSize: '11px', background: 'rgba(139,92,246,0.15)', color: 'var(--color-purple-light)', padding: '2px 8px', borderRadius: '10px' }}>{goal.category}</span>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Deadline: {goal.deadline}</span>
-                              {goal.achievementUnlocked && <span style={{ fontSize: '11px', color: '#10b981' }}>🏆 Achievement Unlocked</span>}
+                  {(() => {
+                    const filtered = state.goals.filter(goal => {
+                      const categoryMatch = goalFilterCategory === 'All' || goal.category === goalFilterCategory;
+                      const statusMatch = goalFilterStatus === 'All' || goal.status === goalFilterStatus;
+                      return categoryMatch && statusMatch;
+                    });
+
+                    const sorted = [...filtered].sort((a, b) => {
+                      if (goalSortOption === 'recently-added') {
+                        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                        return timeB - timeA;
+                      } else if (goalSortOption === 'deadline') {
+                        return a.deadline.localeCompare(b.deadline);
+                      } else if (goalSortOption === 'status') {
+                        return a.status.localeCompare(b.status);
+                      } else if (goalSortOption === 'category') {
+                        return a.category.localeCompare(b.category);
+                      }
+                      return 0;
+                    });
+
+                    return sorted.map((goal) => (
+                      <div key={goal.id} className="glass-panel" style={{ padding: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={goal.status === 'Completed'} 
+                              onChange={() => toggleGoalStatus(goal.id)}
+                              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                            />
+                            <div>
+                              <h3 style={{ textDecoration: goal.status === 'Completed' ? 'line-through' : 'none', color: goal.status === 'Completed' ? 'var(--text-secondary)' : '#fff' }}>
+                                {goal.title}
+                              </h3>
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                                <span style={{ fontSize: '11px', background: 'rgba(139,92,246,0.15)', color: 'var(--color-purple-light)', padding: '2px 8px', borderRadius: '10px' }}>{goal.category}</span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Deadline: {goal.deadline}</span>
+                                {goal.achievementUnlocked && <span style={{ fontSize: '11px', color: '#10b981' }}>🏆 Achieved</span>}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="glass-button" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => {
-                            updateState((prev) => {
-                              const goals = prev.goals.map((g) => {
-                                if (g.id === goal.id) return { ...g, isPinned: !g.isPinned };
-                                return g;
+                          
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="glass-button" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => {
+                              updateState((prev) => {
+                                const goals = prev.goals.map((g) => {
+                                  if (g.id === goal.id) return { ...g, isPinned: !g.isPinned };
+                                  return g;
+                                });
+                                return { ...prev, goals };
                               });
-                              return { ...prev, goals };
-                            });
-                          }}>
-                            {goal.isPinned ? 'Pinned' : 'Pin'}
-                          </button>
+                            }}>
+                              {goal.isPinned ? 'Pinned to Dashboard' : 'Pin to Dashboard'}
+                            </button>
+                            <button className="glass-button" style={{ padding: '6px', background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' }} onClick={() => {
+                              updateState((prev) => ({
+                                ...prev,
+                                goals: prev.goals.filter((g) => g.id !== goal.id)
+                              }));
+                            }}>
+                              <Trash size={12} style={{ color: '#ef4444' }} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Milestones */}
-                      <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>Milestones</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {goal.milestones.map((m) => (
-                            <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
-                              <input 
-                                type="checkbox" 
-                                checked={m.completed} 
-                                onChange={() => {
-                                  updateState((prev) => {
-                                    const goals = prev.goals.map((g) => {
-                                      if (g.id === goal.id) {
-                                        const milestones = g.milestones.map((ms) => {
-                                          if (ms.id === m.id) return { ...ms, completed: !ms.completed };
-                                          return ms;
+                        {/* Milestones */}
+                        {goal.milestones.length > 0 && (
+                          <div style={{ marginTop: '16px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-glass)' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>Milestones</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {goal.milestones.map((m) => (
+                                <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={m.completed} 
+                                    onChange={() => {
+                                      updateState((prev) => {
+                                        const goals = prev.goals.map((g) => {
+                                          if (g.id === goal.id) {
+                                            const milestones = g.milestones.map((ms) => {
+                                              if (ms.id === m.id) return { ...ms, completed: !ms.completed };
+                                              return ms;
+                                            });
+                                            const compCount = milestones.filter(ms => ms.completed).length;
+                                            const progress = Math.round((compCount / milestones.length) * 100);
+                                            const status = (progress === 100 ? 'Completed' : 'In Progress') as GoalStatus;
+                                            return { ...g, milestones, progress, status };
+                                          }
+                                          return g;
                                         });
-                                        const compCount = milestones.filter(ms => ms.completed).length;
-                                        const progress = Math.round((compCount / milestones.length) * 100);
-                                        const status = (progress === 100 ? 'Completed' : 'In Progress') as GoalStatus;
-                                        return { ...g, milestones, progress, status };
-                                      }
-                                      return g;
-                                    });
-                                    return { ...prev, goals };
+                                        return { ...prev, goals };
+                                      });
+                                    }}
+                                  />
+                                  <span style={{ textDecoration: m.completed ? 'line-through' : 'none', color: m.completed ? 'var(--text-muted)' : 'var(--text-primary)' }}>{m.title}</span>
+                                </label>
+                              ))}
+                              <form onSubmit={(e) => {
+                                e.preventDefault();
+                                const input = e.currentTarget.elements.namedItem('milestone') as HTMLInputElement;
+                                if (!input.value.trim()) return;
+                                const title = input.value;
+                                updateState((prev) => {
+                                  const goals = prev.goals.map((g) => {
+                                    if (g.id === goal.id) {
+                                      const milestones = [...g.milestones, { id: Math.random().toString(), title, completed: false }];
+                                      const progress = Math.round((milestones.filter(ms => ms.completed).length / milestones.length) * 100);
+                                      return { ...g, milestones, progress };
+                                    }
+                                    return g;
                                   });
-                                }}
-                              />
-                              <span style={{ textDecoration: m.completed ? 'line-through' : 'none', color: m.completed ? 'var(--text-muted)' : 'var(--text-primary)' }}>{m.title}</span>
-                            </label>
-                          ))}
-                          <form onSubmit={(e) => {
-                            e.preventDefault();
-                            const input = e.currentTarget.elements.namedItem('milestone') as HTMLInputElement;
-                            if (!input.value.trim()) return;
-                            const title = input.value;
-                            updateState((prev) => {
-                              const goals = prev.goals.map((g) => {
-                                if (g.id === goal.id) {
-                                  const milestones = [...g.milestones, { id: Math.random().toString(), title, completed: false }];
-                                  const progress = Math.round((milestones.filter(ms => ms.completed).length / milestones.length) * 100);
-                                  return { ...g, milestones, progress };
-                                }
-                                return g;
-                              });
-                              return { ...prev, goals };
-                            });
-                            input.value = '';
-                          }} style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-                            <input name="milestone" type="text" placeholder="Add milestone..." className="glass-input" style={{ flex: 1, padding: '4px 8px', fontSize: '12px' }} />
-                            <button type="submit" className="glass-button" style={{ padding: '4px 8px', fontSize: '12px' }}>+</button>
-                          </form>
+                                  return { ...prev, goals };
+                                });
+                                input.value = '';
+                              }} style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                                <input name="milestone" type="text" placeholder="Add milestone..." className="glass-input" style={{ flex: 1, padding: '4px 8px', fontSize: '12px' }} />
+                                <button type="submit" className="glass-button" style={{ padding: '4px 8px', fontSize: '12px' }}>+</button>
+                              </form>
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
+                          <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${goal.progress}%`, background: 'var(--color-purple)' }} />
+                          </div>
+                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', width: '32px' }}>{goal.progress}%</span>
                         </div>
                       </div>
+                    ));
+                  })()}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
-                        <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${goal.progress}%`, background: 'var(--color-purple)' }} />
-                        </div>
-                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', width: '32px' }}>{goal.progress}%</span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {state.goals.filter(g => g.month === selectedMonth).length === 0 && (
+                  {state.goals.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }} className="glass-panel">
-                      No goals set for {selectedMonth}. Add some goals below.
+                      No goals created yet. Use the "Add a Goal" button above to get started!
                     </div>
                   )}
-
-                  {/* Create Goal Form */}
-                  <form className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }} onSubmit={(e) => {
-                    e.preventDefault();
-                    const form = e.currentTarget;
-                    const title = (form.elements.namedItem('title') as HTMLInputElement).value;
-                    const category = (form.elements.namedItem('category') as HTMLSelectElement).value as GoalCategory;
-                    const deadline = (form.elements.namedItem('deadline') as HTMLInputElement).value;
-                    const notes = (form.elements.namedItem('notes') as HTMLTextAreaElement).value;
-
-                    if (!title) return;
-
-                    const newGoal: Goal = {
-                      id: Math.random().toString(),
-                      title,
-                      month: selectedMonth,
-                      status: 'Not Started',
-                      progress: 0,
-                      isPinned: false,
-                      deadline: deadline || new Date().toISOString().split('T')[0],
-                      category,
-                      notes,
-                      milestones: []
-                    };
-
-                    updateState((prev) => ({
-                      ...prev,
-                      goals: [...prev.goals, newGoal]
-                    }));
-                    form.reset();
-                  }}>
-                    <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>Add Goal for {selectedMonth}</h3>
-                    <input name="title" type="text" placeholder="Goal Title..." required className="glass-input" />
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      <select name="category" className="glass-input" style={{ color: '#ffffff' }}>
-                        <option value="Career">Career</option>
-                        <option value="Health">Health</option>
-                        <option value="Finance">Finance</option>
-                        <option value="Business">Business</option>
-                        <option value="Learning">Learning</option>
-                        <option value="Personal">Personal</option>
-                      </select>
-                      <input name="deadline" type="date" className="glass-input" style={{ color: '#ffffff' }} />
-                    </div>
-
-                    <textarea name="notes" placeholder="Goal notes / description..." className="glass-input" style={{ height: '80px', resize: 'none' }}></textarea>
-                    
-                    <button type="submit" className="glass-button" style={{ alignSelf: 'flex-start' }}><Plus size={16} /> Add Goal</button>
-                  </form>
-
                 </div>
 
                 {/* Sidebar Info/Milestone reviews */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div className="glass-panel" style={{ padding: '24px' }}>
-                    <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Monthly Review</h3>
-                    <p style={{ fontSize: '13px', marginBottom: '16px' }}>Assess your progression, review achievements, and set expectations for the month of {selectedMonth}.</p>
+                    <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Life Goals Review</h3>
+                    <p style={{ fontSize: '13px', marginBottom: '16px' }}>Assess your progression, write down reflections, and set new expectations for your life milestones.</p>
                     <textarea 
                       className="glass-input" 
-                      placeholder="Write your review for the month here..." 
+                      placeholder="Write your general life goals review and reflections here..." 
                       style={{ height: '140px', width: '100%', resize: 'none', fontSize: '13px' }}
-                      value={state.goals.find(g => g.month === selectedMonth)?.monthlyReview || ''}
+                      value={state.goals[0]?.monthlyReview || ''}
                       onChange={(e) => {
                         const val = e.target.value;
                         updateState((prev) => {
-                          const goals = prev.goals.map((g) => {
-                            if (g.month === selectedMonth) {
+                          const goals = prev.goals.map((g, idx) => {
+                            if (idx === 0) {
                               return { ...g, monthlyReview: val };
                             }
                             return g;
@@ -1421,22 +1489,162 @@ function MainDashboardApp() {
                   </div>
 
                   <div className="glass-panel" style={{ padding: '24px' }}>
-                    <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Achievement Tracking</h3>
+                    <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Achieved Goals History</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {state.goals.filter(g => g.achievementUnlocked).map((goal) => (
+                      {state.goals.filter(g => g.status === 'Completed').map((goal) => (
                         <div key={goal.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
                           <Award size={20} style={{ color: 'var(--color-completed)' }} />
-                          <span style={{ fontSize: '13px', fontWeight: 500 }}>{goal.title}</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 500 }}>{goal.title}</div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Category: {goal.category}</div>
+                          </div>
                         </div>
                       ))}
-                      {state.goals.filter(g => g.achievementUnlocked).length === 0 && (
-                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>No achievements unlocked yet. Finish a goal!</div>
+                      {state.goals.filter(g => g.status === 'Completed').length === 0 && (
+                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>No achieved goals yet. Finish a goal to populate your achievements!</div>
                       )}
                     </div>
                   </div>
                 </div>
 
               </div>
+
+              {/* Add Goal Modal */}
+              {isAddGoalModalOpen && (
+                <div style={{
+                  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                  background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(10px)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  zIndex: 2000, pointerEvents: 'auto'
+                }}>
+                  <div className="glass-panel animate-slide-up" style={{ padding: '32px', width: '500px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ fontSize: '22px', fontWeight: 700 }}>Add a Goal</h3>
+                      <button className="glass-button" style={{ padding: '4px', border: 'none', background: 'transparent' }} onClick={() => {
+                        setIsAddGoalModalOpen(false);
+                        setNewGoalMilestones([]);
+                        setNewMilestoneText('');
+                        setIsCustomCategoryActive(false);
+                        setCustomCategoryInput('');
+                      }}>
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleCreateGoal} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div>
+                        <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Goal Title</label>
+                        <input name="title" type="text" placeholder="Goal Title..." required className="glass-input" style={{ width: '100%' }} />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Category</label>
+                          <select 
+                            name="category" 
+                            className="glass-input" 
+                            style={{ color: '#ffffff', width: '100%' }}
+                            value={isCustomCategoryActive ? 'custom' : newGoalCategory}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === 'custom') {
+                                setIsCustomCategoryActive(true);
+                              } else {
+                                setIsCustomCategoryActive(false);
+                                setNewGoalCategory(val);
+                              }
+                            }}
+                          >
+                            <option value="Career">Career</option>
+                            <option value="Health">Health</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Business">Business</option>
+                            <option value="Learning">Learning</option>
+                            <option value="Personal">Personal</option>
+                            <option value="custom">+ Custom Category</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Deadline</label>
+                          <input name="deadline" type="date" className="glass-input" style={{ color: '#ffffff', width: '100%' }} required />
+                        </div>
+                      </div>
+
+                      {isCustomCategoryActive && (
+                        <div>
+                          <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Custom Category Name</label>
+                          <input 
+                            type="text" 
+                            placeholder="Enter custom category name..." 
+                            required 
+                            value={customCategoryInput}
+                            onChange={(e) => setCustomCategoryInput(e.target.value)}
+                            className="glass-input" 
+                            style={{ width: '100%' }} 
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Description / Notes</label>
+                        <textarea name="notes" placeholder="Goal notes / description..." className="glass-input" style={{ height: '70px', resize: 'none', width: '100%' }}></textarea>
+                      </div>
+
+                      {/* Staging Milestones */}
+                      <div>
+                        <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Milestones</label>
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                          <input 
+                            type="text" 
+                            placeholder="Add milestone title..." 
+                            value={newMilestoneText}
+                            onChange={(e) => setNewMilestoneText(e.target.value)}
+                            className="glass-input" 
+                            style={{ flex: 1, padding: '6px 12px', fontSize: '13px' }} 
+                          />
+                          <button 
+                            type="button" 
+                            className="glass-button" 
+                            onClick={() => {
+                              if (!newMilestoneText.trim()) return;
+                              setNewGoalMilestones([...newGoalMilestones, newMilestoneText]);
+                              setNewMilestoneText('');
+                            }}
+                          >
+                            Add
+                          </button>
+                        </div>
+
+                        {newGoalMilestones.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', maxHeight: '100px', overflowY: 'auto' }}>
+                            {newGoalMilestones.map((m, idx) => (
+                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                                <span>• {m}</span>
+                                <button type="button" style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }} onClick={() => {
+                                  setNewGoalMilestones(newGoalMilestones.filter((_, i) => i !== idx));
+                                }}>
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '12px', justifyContent: 'flex-end' }}>
+                        <button type="button" className="glass-button" onClick={() => {
+                          setIsAddGoalModalOpen(false);
+                          setNewGoalMilestones([]);
+                          setNewMilestoneText('');
+                          setIsCustomCategoryActive(false);
+                          setCustomCategoryInput('');
+                        }}>Cancel</button>
+                        <button type="submit" className="glass-button active">Create Goal</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
