@@ -3,9 +3,10 @@ import {
   Activity, Award, BookOpen, Brain, Calendar, CheckSquare, 
   Clock, DollarSign, Home, Maximize2, Minimize2, Plus, Save, Settings, 
   ShieldAlert, Sparkles, TrendingUp, Volume2, X, Play, Pause,
-  RotateCcw, Coffee, ShieldCheck, ChevronRight, Search, Trash
+  RotateCcw, Coffee, ShieldCheck, ChevronRight, Search, Trash,
+  Pin, Paperclip, Link
 } from 'lucide-react';
-import type { Month, Goal, GoalStatus, Task, TaskColumn, VoiceReminder, FocusSession, FocusSessionType, Note, FinanceRecord, AppSettings, AppState } from './types';
+import type { Month, Goal, GoalStatus, Task, TaskColumn, TaskPriority, Subtask, VoiceReminder, FocusSession, FocusSessionType, Note, FinanceRecord, AppSettings, AppState } from './types';
 import { loadState, saveState } from './utils/storage';
 import { speakText, stopSpeaking, getAvailableVoices } from './utils/tts';
 
@@ -287,6 +288,26 @@ function MainDashboardApp() {
 
   // Tasks state
   const [taskSearch, setTaskSearch] = useState('');
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [taskFormTitle, setTaskFormTitle] = useState('');
+  const [taskFormColumn, setTaskFormColumn] = useState<TaskColumn>('todo');
+  const [taskFormPriority, setTaskFormPriority] = useState<TaskPriority>('Medium');
+  const [taskFormDueDate, setTaskFormDueDate] = useState('');
+  const [taskFormLabel, setTaskFormLabel] = useState('');
+  const [taskFormTags, setTaskFormTags] = useState<string[]>([]);
+  const [taskFormEstTime, setTaskFormEstTime] = useState<number>(30);
+  const [taskFormSpentTime, setTaskFormSpentTime] = useState<number>(0);
+  const [taskFormNotes, setTaskFormNotes] = useState('');
+  const [taskFormIsPinned, setTaskFormIsPinned] = useState(false);
+  const [taskFormSubtasks, setTaskFormSubtasks] = useState<Subtask[]>([]);
+  const [taskFormLinks, setTaskFormLinks] = useState<{ name: string; url: string }[]>([]);
+  const [taskFormAttachments, setTaskFormAttachments] = useState<{ id: string; name: string; type: string; dataUrl: string; size: number }[]>([]);
+  const [newSubtaskTitleText, setNewSubtaskTitleText] = useState('');
+  const [newLinkNameText, setNewLinkNameText] = useState('');
+  const [newLinkUrlText, setNewLinkUrlText] = useState('');
+  const [manualTimeToAddText, setManualTimeToAddText] = useState('');
+  const [taskFormTagInput, setTaskFormTagInput] = useState('');
 
   // Finance state
   const [financeType, setFinanceType] = useState<'income' | 'expense' | 'savings' | 'debt'>('income');
@@ -766,33 +787,150 @@ function MainDashboardApp() {
            t.tags.some(tag => tag.toLowerCase().includes(query));
   }) || [];
 
-  // Quick Task Creation
-  const [quickTaskText, setQuickTaskText] = useState('');
-  const createQuickTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickTaskText.trim()) return;
 
-    const newTask: Task = {
-      id: Math.random().toString(),
-      title: quickTaskText,
-      column: 'todo',
-      priority: 'Medium',
-      dueDate: new Date().toISOString().split('T')[0],
-      isRecurring: false,
-      subtasks: [],
-      tags: [],
-      label: 'Quick Task',
-      estTime: 30,
-      spentTime: 0,
-      isArchived: false,
-      createdAt: new Date().toISOString()
+
+  // Task details modal handlers
+  const handleOpenTaskModal = (task?: Task) => {
+    if (task) {
+      setEditingTaskId(task.id);
+      setTaskFormTitle(task.title);
+      setTaskFormColumn(task.column);
+      setTaskFormPriority(task.priority);
+      setTaskFormDueDate(task.dueDate || new Date().toISOString().split('T')[0]);
+      setTaskFormLabel(task.label || 'Task');
+      setTaskFormTags(task.tags || []);
+      setTaskFormEstTime(task.estTime || 30);
+      setTaskFormSpentTime(task.spentTime || 0);
+      setTaskFormNotes(task.notes || '');
+      setTaskFormIsPinned(!!task.isPinned);
+      setTaskFormSubtasks(task.subtasks || []);
+      setTaskFormLinks(task.links || []);
+      setTaskFormAttachments(task.attachments || []);
+    } else {
+      setEditingTaskId(null);
+      setTaskFormTitle('');
+      setTaskFormColumn('todo');
+      setTaskFormPriority('Medium');
+      setTaskFormDueDate(new Date().toISOString().split('T')[0]);
+      setTaskFormLabel('Task');
+      setTaskFormTags([]);
+      setTaskFormEstTime(30);
+      setTaskFormSpentTime(0);
+      setTaskFormNotes('');
+      setTaskFormIsPinned(false);
+      setTaskFormSubtasks([]);
+      setTaskFormLinks([]);
+      setTaskFormAttachments([]);
+    }
+    setNewSubtaskTitleText('');
+    setNewLinkNameText('');
+    setNewLinkUrlText('');
+    setManualTimeToAddText('');
+    setTaskFormTagInput('');
+    setIsTaskModalOpen(true);
+  };
+
+  const handleSaveTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskFormTitle.trim()) return;
+
+    let additionalMinutes = 0;
+    if (manualTimeToAddText.trim()) {
+      const parsed = parseInt(manualTimeToAddText);
+      if (!isNaN(parsed) && parsed > 0) {
+        additionalMinutes = parsed;
+      }
+    }
+
+    const updatedTaskFields = {
+      title: taskFormTitle,
+      column: taskFormColumn,
+      priority: taskFormPriority,
+      dueDate: taskFormDueDate,
+      label: taskFormLabel || 'Task',
+      tags: taskFormTags,
+      estTime: Number(taskFormEstTime) || 30,
+      spentTime: (Number(taskFormSpentTime) || 0) + additionalMinutes,
+      notes: taskFormNotes,
+      isPinned: taskFormIsPinned,
+      subtasks: taskFormSubtasks,
+      links: taskFormLinks,
+      attachments: taskFormAttachments,
     };
 
-    updateState((prev) => ({
-      ...prev,
-      tasks: [newTask, ...prev.tasks]
-    }));
-    setQuickTaskText('');
+    updateState((prev) => {
+      let tasks;
+      if (editingTaskId) {
+        tasks = prev.tasks.map((t) => {
+          if (t.id === editingTaskId) {
+            const completedAt = taskFormColumn === 'completed' && t.column !== 'completed' ? new Date().toISOString() : t.completedAt;
+            return { ...t, ...updatedTaskFields, completedAt };
+          }
+          return t;
+        });
+      } else {
+        const newTask: Task = {
+          id: Math.random().toString(),
+          ...updatedTaskFields,
+          isRecurring: false,
+          isArchived: false,
+          createdAt: new Date().toISOString()
+        };
+        tasks = [newTask, ...prev.tasks];
+      }
+
+      if (taskFormColumn === 'completed') {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const activityLog = prev.activityLog.map((log) => {
+          if (log.date === todayStr) {
+            return {
+              ...log,
+              tasksCompletedCount: log.tasksCompletedCount + 1,
+              productivityScore: Math.min(100, log.productivityScore + 5)
+            };
+          }
+          return log;
+        });
+        return { ...prev, tasks, activityLog };
+      }
+
+      return { ...prev, tasks };
+    });
+
+    setIsTaskModalOpen(false);
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    if (window.confirm("Are you sure you want to delete this task?")) {
+      updateState((prev) => ({
+        ...prev,
+        tasks: prev.tasks.filter((t) => t.id !== taskId)
+      }));
+      setIsTaskModalOpen(false);
+    }
+  };
+
+  const handleTaskAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Data = reader.result as string;
+        setTaskFormAttachments((prev) => [
+          ...prev,
+          {
+            id: Math.random().toString(),
+            name: file.name,
+            type: file.type,
+            dataUrl: base64Data,
+            size: file.size
+          }
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   // Notes actions
@@ -1226,56 +1364,99 @@ function MainDashboardApp() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {state.tasks.filter(t => !t.isArchived && t.column !== 'completed').slice(0, 3).map((task) => (
-                        <div key={task.id} className="glass-card" style={{ padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{
-                                width: '8px', height: '8px', borderRadius: '50%', 
-                                background: task.priority === 'Critical' ? 'red' : task.priority === 'High' ? 'orange' : 'green'
-                              }}></span>
-                              <span style={{ fontWeight: 500 }}>{task.title}</span>
+                      {(() => {
+                        const activeTasks = state.tasks.filter(t => !t.isArchived);
+                        const sortedTasks = [...activeTasks].sort((a, b) => {
+                          if (a.isPinned && !b.isPinned) return -1;
+                          if (!a.isPinned && b.isPinned) return 1;
+                          const aComp = a.column === 'completed' ? 1 : 0;
+                          const bComp = b.column === 'completed' ? 1 : 0;
+                          return aComp - bComp;
+                        });
+                        
+                        return sortedTasks.slice(0, 5).map((task) => (
+                          <div 
+                            key={task.id} 
+                            className="glass-card animate-slide-up" 
+                            style={{ 
+                              padding: '14px', 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              borderLeft: task.isPinned ? '3px solid var(--color-purple)' : undefined
+                            }}
+                            onClick={() => handleOpenTaskModal(task)}
+                          >
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {task.isPinned && <Pin size={12} style={{ color: 'var(--color-purple-light)', transform: 'rotate(45deg)' }} />}
+                                <span style={{
+                                  width: '8px', height: '8px', borderRadius: '50%', 
+                                  background: task.column === 'completed' ? 'var(--color-completed)' : (task.priority === 'Critical' ? 'red' : task.priority === 'High' ? 'orange' : 'green')
+                                }}></span>
+                                <span style={{ fontWeight: 500, textDecoration: task.column === 'completed' ? 'line-through' : 'none', color: task.column === 'completed' ? 'var(--text-secondary)' : undefined }}>{task.title}</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px', marginLeft: '16px' }}>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontSize: '11px',
+                                  fontWeight: 500,
+                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                                  color: '#e5e7eb',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px'
+                                }}>
+                                  <Calendar size={11} style={{ color: 'var(--color-purple-light)' }} />
+                                  <span>Due: {task.dueDate}</span>
+                                </span>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontSize: '11px',
+                                  fontWeight: 500,
+                                  background: 'rgba(255, 255, 255, 0.05)',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                                  color: '#e5e7eb',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px'
+                                }}>
+                                  <Clock size={11} style={{ color: 'var(--color-purple-light)' }} />
+                                  <span>Est: {task.estTime}m</span>
+                                </span>
+                                {task.column === 'completed' && (
+                                  <span style={{
+                                    fontSize: '11px',
+                                    color: 'var(--color-completed)',
+                                    background: 'rgba(16, 185, 129, 0.12)',
+                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px'
+                                  }}>
+                                    Completed
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px', marginLeft: '16px' }}>
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '12px',
-                                fontWeight: 500,
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                color: '#e5e7eb',
-                                padding: '4px 8px',
-                                borderRadius: '6px'
-                              }}>
-                                <Calendar size={12} style={{ color: 'var(--color-purple-light)' }} />
-                                <span>Due: {task.dueDate}</span>
-                              </span>
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '12px',
-                                fontWeight: 500,
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                color: '#e5e7eb',
-                                padding: '4px 8px',
-                                borderRadius: '6px'
-                              }}>
-                                <Clock size={12} style={{ color: 'var(--color-purple-light)' }} />
-                                <span>Est: {task.estTime}m</span>
-                              </span>
-                            </div>
+                            <button 
+                              className="glass-button" 
+                              style={{ padding: '6px 12px', fontSize: '12px' }} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTaskTimeTracking(task.id);
+                              }}
+                            >
+                              {trackingTaskId === task.id ? <Pause size={12} /> : <Play size={12} />}
+                              <span>{trackingTaskId === task.id ? 'Tracking' : 'Track'}</span>
+                            </button>
                           </div>
-                          <button className="glass-button" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => toggleTaskTimeTracking(task.id)}>
-                            {trackingTaskId === task.id ? <Pause size={12} /> : <Play size={12} />}
-                            {trackingTaskId === task.id ? 'Tracking' : 'Track'}
-                          </button>
-                        </div>
-                      ))}
-                      {state.tasks.filter(t => !t.isArchived && t.column !== 'completed').length === 0 && (
+                        ));
+                      })()}
+                      {state.tasks.filter(t => !t.isArchived).length === 0 && (
                         <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No critical tasks for today. Awesome!</div>
                       )}
                     </div>
@@ -1926,7 +2107,7 @@ function MainDashboardApp() {
                   <p>Drag and drop tasks across columns. Track time spent, priority, and subtasks.</p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   {/* Search filter input */}
                   <div style={{ position: 'relative' }}>
                     <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -1940,18 +2121,14 @@ function MainDashboardApp() {
                     />
                   </div>
 
-                  {/* Quick Task Creation form */}
-                  <form onSubmit={createQuickTask} style={{ display: 'flex', gap: '8px' }}>
-                    <input 
-                      type="text" 
-                      placeholder="Quick task title..." 
-                      value={quickTaskText}
-                      onChange={(e) => setQuickTaskText(e.target.value)}
-                      className="glass-input"
-                      style={{ width: '240px' }}
-                    />
-                    <button type="submit" className="glass-button"><Plus size={16} /> Add Task</button>
-                  </form>
+                  {/* Improved Add Task button */}
+                  <button 
+                    onClick={() => handleOpenTaskModal()} 
+                    className="glass-button active"
+                    style={{ padding: '10px 18px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Plus size={16} /> Create New Task
+                  </button>
                 </div>
               </div>
 
@@ -1961,13 +2138,21 @@ function MainDashboardApp() {
                 {/* To Do Column */}
                 <div 
                   className="glass-panel" 
-                  style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(8, 8, 12, 0.4)' }}
+                  style={{ 
+                    padding: '18px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '14px', 
+                    background: 'rgba(30, 41, 59, 0.15)',
+                    border: '1px solid rgba(96, 165, 250, 0.25)',
+                    boxShadow: '0 0 20px rgba(96, 165, 250, 0.06), inset 0 0 15px rgba(96, 165, 250, 0.03)'
+                  }}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, 'todo')}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-glass)', paddingBottom: '8px' }}>
-                    <h3 style={{ fontSize: '16px', color: 'var(--text-secondary)' }}>To Do</h3>
-                    <span style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '10px', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(96, 165, 250, 0.2)', paddingBottom: '10px' }}>
+                    <h3 style={{ fontSize: '16px', color: '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>To Do</h3>
+                    <span style={{ background: 'rgba(96, 165, 250, 0.15)', color: '#60a5fa', border: '1px solid rgba(96, 165, 250, 0.3)', padding: '2px 8px', borderRadius: '10px', fontSize: '12px', fontWeight: 600 }}>
                       {filteredTasks.filter(t => t.column === 'todo').length}
                     </span>
                   </div>
@@ -1978,8 +2163,9 @@ function MainDashboardApp() {
                         key={task.id} 
                         draggable 
                         onDragStart={(e) => handleDragStart(e, task.id)}
-                        className="glass-card" 
-                        style={{ padding: '14px', cursor: 'grab' }}
+                        className="glass-card animate-slide-up" 
+                        style={{ padding: '14px', cursor: 'grab', borderLeft: task.isPinned ? '3px solid var(--color-purple)' : undefined }}
+                        onClick={() => handleOpenTaskModal(task)}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                           <span style={{
@@ -1991,23 +2177,37 @@ function MainDashboardApp() {
                           }}>
                             {task.priority}
                           </span>
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            color: '#e5e7eb',
-                            padding: '4px 8px',
-                            borderRadius: '6px'
-                          }}>
-                            <Clock size={12} style={{ color: 'var(--color-purple-light)' }} />
-                            <span>Est: {task.estTime}m</span>
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {task.isPinned && <Pin size={12} style={{ color: 'var(--color-purple-light)', transform: 'rotate(45deg)' }} />}
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              fontWeight: 500,
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              color: '#e5e7eb',
+                              padding: '3px 6px',
+                              borderRadius: '6px'
+                            }}>
+                              <Clock size={11} style={{ color: 'var(--color-purple-light)' }} />
+                              <span>{task.spentTime}m/{task.estTime}m</span>
+                            </span>
+                          </div>
                         </div>
-                        <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px', color: '#fff' }}>{task.title}</h4>
+                        <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '8px', color: '#fff' }}>{task.title}</h4>
+                        {task.notes && (
+                          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: '8px' }}>
+                            {task.notes}
+                          </p>
+                        )}
+                        {task.subtasks && task.subtasks.length > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                            <CheckSquare size={11} style={{ color: '#60a5fa' }} />
+                            <span>{task.subtasks.filter(s => s.completed).length}/{task.subtasks.length} milestones</span>
+                          </div>
+                        )}
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
                           <span style={{
@@ -2021,13 +2221,27 @@ function MainDashboardApp() {
                             padding: '3px 8px',
                             borderRadius: '6px'
                           }}>
-                            <Calendar size={11} style={{ color: 'var(--color-purple-light)' }} />
+                            <Calendar size={11} style={{ color: '#60a5fa' }} />
                             <span>Due: {task.dueDate}</span>
                           </span>
-                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                            {task.tags.map((tg, i) => (
-                              <span key={i} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: 'var(--color-purple-light)', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>{tg}</span>
-                            ))}
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            {task.attachments && task.attachments.length > 0 && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--text-muted)' }} title={`${task.attachments.length} attachments`}>
+                                <Paperclip size={11} /> {task.attachments.length}
+                              </span>
+                            )}
+                            {task.links && task.links.length > 0 && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--text-muted)' }} title={`${task.links.length} links`}>
+                                <Link size={11} /> {task.links.length}
+                              </span>
+                            )}
+                            {task.tags && task.tags.length > 0 && (
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                {task.tags.slice(0, 2).map((tg, i) => (
+                                  <span key={i} style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: 'var(--color-purple-light)', padding: '1px 5px', borderRadius: '4px', fontSize: '10px', fontWeight: 500 }}>{tg}</span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -2038,13 +2252,21 @@ function MainDashboardApp() {
                 {/* In Progress Column */}
                 <div 
                   className="glass-panel" 
-                  style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(8, 8, 12, 0.4)' }}
+                  style={{ 
+                    padding: '18px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '14px', 
+                    background: 'rgba(88, 28, 135, 0.05)',
+                    border: '1px solid rgba(167, 139, 250, 0.25)',
+                    boxShadow: '0 0 20px rgba(167, 139, 250, 0.06), inset 0 0 15px rgba(167, 139, 250, 0.03)'
+                  }}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, 'in-progress')}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-glass)', paddingBottom: '8px' }}>
-                    <h3 style={{ fontSize: '16px', color: 'var(--color-purple-light)' }}>In Progress</h3>
-                    <span style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '10px', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(167, 139, 250, 0.2)', paddingBottom: '10px' }}>
+                    <h3 style={{ fontSize: '16px', color: '#a78bfa', fontWeight: 600 }}>In Progress</h3>
+                    <span style={{ background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa', border: '1px solid rgba(167, 139, 250, 0.3)', padding: '2px 8px', borderRadius: '10px', fontSize: '12px', fontWeight: 600 }}>
                       {filteredTasks.filter(t => t.column === 'in-progress').length}
                     </span>
                   </div>
@@ -2055,14 +2277,13 @@ function MainDashboardApp() {
                         key={task.id} 
                         draggable 
                         onDragStart={(e) => handleDragStart(e, task.id)}
-                        className="glass-card" 
+                        className="glass-card animate-slide-up" 
                         style={{ 
                           padding: '14px', 
                           cursor: 'grab', 
-                          borderLeft: '3px solid var(--color-purple)',
-                          borderColor: task.priority === 'Critical' ? '#ef4444' : undefined,
-                          boxShadow: task.priority === 'Critical' ? '0 0 10px rgba(239, 68, 68, 0.2)' : undefined
+                          borderLeft: task.isPinned ? '3px solid var(--color-purple)' : undefined
                         }}
+                        onClick={() => handleOpenTaskModal(task)}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                           <span style={{
@@ -2074,23 +2295,37 @@ function MainDashboardApp() {
                           }}>
                             {task.priority}
                           </span>
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            color: '#e5e7eb',
-                            padding: '4px 8px',
-                            borderRadius: '6px'
-                          }}>
-                            <Clock size={12} style={{ color: 'var(--color-purple-light)' }} />
-                            <span>Tracked: {task.spentTime}m</span>
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {task.isPinned && <Pin size={12} style={{ color: 'var(--color-purple-light)', transform: 'rotate(45deg)' }} />}
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              fontWeight: 500,
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              color: '#e5e7eb',
+                              padding: '3px 6px',
+                              borderRadius: '6px'
+                            }}>
+                              <Clock size={11} style={{ color: 'var(--color-purple-light)' }} />
+                              <span>{task.spentTime}m/{task.estTime}m</span>
+                            </span>
+                          </div>
                         </div>
-                        <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px', color: '#fff' }}>{task.title}</h4>
+                        <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '8px', color: '#fff' }}>{task.title}</h4>
+                        {task.notes && (
+                          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: '8px' }}>
+                            {task.notes}
+                          </p>
+                        )}
+                        {task.subtasks && task.subtasks.length > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                            <CheckSquare size={11} style={{ color: '#a78bfa' }} />
+                            <span>{task.subtasks.filter(s => s.completed).length}/{task.subtasks.length} milestones</span>
+                          </div>
+                        )}
                         
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
                           <span style={{
@@ -2104,13 +2339,34 @@ function MainDashboardApp() {
                             padding: '3px 8px',
                             borderRadius: '6px'
                           }}>
-                            <Calendar size={11} style={{ color: 'var(--color-purple-light)' }} />
+                            <Calendar size={11} style={{ color: '#a78bfa' }} />
                             <span>Due: {task.dueDate}</span>
                           </span>
-                          <button className="glass-button" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => toggleTaskTimeTracking(task.id)}>
-                            {trackingTaskId === task.id ? <Pause size={12} /> : <Play size={12} />}
-                            <span style={{ marginLeft: '4px' }}>{trackingTaskId === task.id ? 'Tracking' : 'Track'}</span>
-                          </button>
+                          
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            {task.attachments && task.attachments.length > 0 && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--text-muted)' }} title={`${task.attachments.length} attachments`}>
+                                <Paperclip size={11} /> {task.attachments.length}
+                              </span>
+                            )}
+                            {task.links && task.links.length > 0 && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--text-muted)' }} title={`${task.links.length} links`}>
+                                <Link size={11} /> {task.links.length}
+                              </span>
+                            )}
+                            
+                            <button 
+                              className="glass-button" 
+                              style={{ padding: '4px 8px', fontSize: '11px', height: '24px' }} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTaskTimeTracking(task.id);
+                              }}
+                            >
+                              {trackingTaskId === task.id ? <Pause size={10} /> : <Play size={10} />}
+                              <span style={{ marginLeft: '3px' }}>{trackingTaskId === task.id ? 'Stop' : 'Track'}</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -2120,13 +2376,21 @@ function MainDashboardApp() {
                 {/* Completed Column */}
                 <div 
                   className="glass-panel" 
-                  style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(8, 8, 12, 0.4)' }}
+                  style={{ 
+                    padding: '18px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '14px', 
+                    background: 'rgba(16, 185, 129, 0.02)',
+                    border: '1px solid rgba(52, 211, 153, 0.25)',
+                    boxShadow: '0 0 20px rgba(52, 211, 153, 0.06), inset 0 0 15px rgba(52, 211, 153, 0.03)'
+                  }}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, 'completed')}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-glass)', paddingBottom: '8px' }}>
-                    <h3 style={{ fontSize: '16px', color: 'var(--color-completed)' }}>Completed</h3>
-                    <span style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '10px', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(52, 211, 153, 0.2)', paddingBottom: '10px' }}>
+                    <h3 style={{ fontSize: '16px', color: '#34d399', fontWeight: 600 }}>Completed</h3>
+                    <span style={{ background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '2px 8px', borderRadius: '10px', fontSize: '12px', fontWeight: 600 }}>
                       {filteredTasks.filter(t => t.column === 'completed').length}
                     </span>
                   </div>
@@ -2137,8 +2401,9 @@ function MainDashboardApp() {
                         key={task.id} 
                         draggable 
                         onDragStart={(e) => handleDragStart(e, task.id)}
-                        className="glass-card" 
-                        style={{ padding: '14px', cursor: 'grab', opacity: 0.65 }}
+                        className="glass-card animate-slide-up" 
+                        style={{ padding: '14px', cursor: 'grab', opacity: 0.8, borderLeft: task.isPinned ? '3px solid var(--color-purple)' : undefined }}
+                        onClick={() => handleOpenTaskModal(task)}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                           <span style={{
@@ -2150,20 +2415,82 @@ function MainDashboardApp() {
                           }}>
                             Completed
                           </span>
-                          <button className="glass-button" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => {
-                            updateState((prev) => {
-                              const tasks = prev.tasks.map((t) => {
-                                if (t.id === task.id) return { ...t, isArchived: true };
-                                return t;
-                              });
-                              return { ...prev, tasks };
-                            });
-                          }}>Archive</button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {task.isPinned && <Pin size={12} style={{ color: 'var(--color-purple-light)', transform: 'rotate(45deg)' }} />}
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              fontWeight: 500,
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              color: '#e5e7eb',
+                              padding: '3px 6px',
+                              borderRadius: '6px'
+                            }}>
+                              <Clock size={11} style={{ color: 'var(--color-purple-light)' }} />
+                              <span>Total: {task.spentTime}m</span>
+                            </span>
+                          </div>
                         </div>
-                        <h4 style={{ fontSize: '15px', fontWeight: 500, textDecoration: 'line-through', marginBottom: '12px', color: 'var(--text-secondary)' }}>{task.title}</h4>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#e5e7eb', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '6px' }}>
-                          <Clock size={12} style={{ color: 'var(--color-purple-light)' }} />
-                          <span>Total Time: {task.spentTime} mins</span>
+                        <h4 style={{ fontSize: '15px', fontWeight: 500, textDecoration: 'line-through', marginBottom: '8px', color: 'var(--text-secondary)' }}>{task.title}</h4>
+                        {task.notes && (
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: '8px' }}>
+                            {task.notes}
+                          </p>
+                        )}
+                        {task.subtasks && task.subtasks.length > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                            <CheckSquare size={11} style={{ color: '#10b981' }} />
+                            <span>{task.subtasks.filter(s => s.completed).length}/{task.subtasks.length} milestones</span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11px',
+                            color: 'var(--text-muted)',
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            padding: '3px 8px',
+                            borderRadius: '6px'
+                          }}>
+                            <Calendar size={11} style={{ color: '#10b981' }} />
+                            <span>Done: {task.completedAt ? task.completedAt.split('T')[0] : task.dueDate}</span>
+                          </span>
+                          
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            {task.attachments && task.attachments.length > 0 && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--text-muted)' }} title={`${task.attachments.length} attachments`}>
+                                <Paperclip size={11} /> {task.attachments.length}
+                              </span>
+                            )}
+                            {task.links && task.links.length > 0 && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--text-muted)' }} title={`${task.links.length} links`}>
+                                <Link size={11} /> {task.links.length}
+                              </span>
+                            )}
+                            <button 
+                              className="glass-button" 
+                              style={{ padding: '4px 10px', fontSize: '11px', height: '24px' }} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateState((prev) => {
+                                  const tasks = prev.tasks.map((t) => {
+                                    if (t.id === task.id) return { ...t, isArchived: true };
+                                    return t;
+                                  });
+                                  return { ...prev, tasks };
+                                });
+                              }}
+                            >
+                              Archive
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -3356,6 +3683,481 @@ function MainDashboardApp() {
 
         </main>
       </div>
+
+      {/* Task Editor Modal */}
+      {isTaskModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 2000, pointerEvents: 'auto'
+        }}>
+          <div className="glass-panel animate-slide-up" style={{ 
+            padding: '24px', 
+            width: '800px', 
+            maxWidth: '90%', 
+            maxHeight: '90vh',
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '16px',
+            overflow: 'hidden'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontSize: '22px', fontWeight: 700 }}>
+                  {editingTaskId ? 'Edit Task Details' : 'Create New Task'}
+                </h3>
+                {taskFormIsPinned && <Pin size={16} style={{ color: 'var(--color-purple-light)', transform: 'rotate(45deg)' }} />}
+              </div>
+              <button className="glass-button" style={{ padding: '4px', border: 'none', background: 'transparent' }} onClick={() => setIsTaskModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Scrollable content body */}
+            <form onSubmit={handleSaveTask} style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', flex: 1, paddingRight: '8px' }}>
+              
+              {/* Split layout: Details vs Config */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
+                
+                {/* Left Column: Title, Notes, Milestones */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Task Title */}
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Task Title</label>
+                    <input 
+                      type="text" 
+                      placeholder="Enter task title..." 
+                      required 
+                      value={taskFormTitle} 
+                      onChange={(e) => setTaskFormTitle(e.target.value)} 
+                      className="glass-input" 
+                      style={{ width: '100%', fontSize: '16px', fontWeight: 500 }} 
+                    />
+                  </div>
+
+                  {/* Notes / Description */}
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Notes / Description</label>
+                    <textarea 
+                      placeholder="Enter detailed notes, instructions, or descriptions for this task..." 
+                      value={taskFormNotes} 
+                      onChange={(e) => setTaskFormNotes(e.target.value)} 
+                      className="glass-input" 
+                      style={{ width: '100%', height: '120px', resize: 'none', fontSize: '13px', lineHeight: '1.5' }} 
+                    />
+                  </div>
+
+                  {/* Milestones / Subtasks */}
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Milestones / Subtasks</label>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <input 
+                        type="text" 
+                        placeholder="Add new milestone..." 
+                        value={newSubtaskTitleText} 
+                        onChange={(e) => setNewSubtaskTitleText(e.target.value)} 
+                        className="glass-input" 
+                        style={{ flex: 1, padding: '6px 12px', fontSize: '13px' }} 
+                      />
+                      <button 
+                        type="button" 
+                        className="glass-button" 
+                        style={{ padding: '6px 14px' }}
+                        onClick={() => {
+                          if (!newSubtaskTitleText.trim()) return;
+                          setTaskFormSubtasks((prev) => [
+                            ...prev,
+                            { id: Math.random().toString(), title: newSubtaskTitleText, completed: false }
+                          ]);
+                          setNewSubtaskTitleText('');
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    {taskFormSubtasks.length > 0 ? (
+                      <div className="scroll-y" style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px', maxHeight: '140px' }}>
+                        {taskFormSubtasks.map((st) => (
+                          <div key={st.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={st.completed} 
+                                onChange={(e) => {
+                                  setTaskFormSubtasks((prev) => 
+                                    prev.map(item => item.id === st.id ? { ...item, completed: e.target.checked } : item)
+                                  );
+                                }}
+                                style={{ accentColor: 'var(--color-purple)' }}
+                              />
+                              <span style={{ textDecoration: st.completed ? 'line-through' : 'none', color: st.completed ? 'var(--text-muted)' : undefined }}>
+                                {st.title}
+                              </span>
+                            </label>
+                            <button 
+                              type="button" 
+                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '11px' }}
+                              onClick={() => {
+                                setTaskFormSubtasks((prev) => prev.filter(item => item.id !== st.id));
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
+                        No milestones added yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column: Settings, Time tracking, Links, Attachments */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '1px solid rgba(255,255,255,0.05)', paddingLeft: '20px' }}>
+                  
+                  {/* Status, Priority, and Due Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Status</label>
+                      <select 
+                        value={taskFormColumn} 
+                        onChange={(e) => setTaskFormColumn(e.target.value as TaskColumn)}
+                        className="glass-input" 
+                        style={{ color: '#fff', width: '100%', padding: '8px 12px' }}
+                      >
+                        <option value="todo">To Do</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Priority</label>
+                      <select 
+                        value={taskFormPriority} 
+                        onChange={(e) => setTaskFormPriority(e.target.value as TaskPriority)}
+                        className="glass-input" 
+                        style={{ color: '#fff', width: '100%', padding: '8px 12px' }}
+                      >
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Due Date</label>
+                      <input 
+                        type="date" 
+                        value={taskFormDueDate} 
+                        onChange={(e) => setTaskFormDueDate(e.target.value)} 
+                        className="glass-input" 
+                        style={{ color: '#fff', width: '100%', padding: '8px 12px' }} 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Category Label</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Work, Health" 
+                        value={taskFormLabel} 
+                        onChange={(e) => setTaskFormLabel(e.target.value)} 
+                        className="glass-input" 
+                        style={{ color: '#fff', width: '100%', padding: '8px 12px' }} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Time Logging */}
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Time Allocation (Minutes)</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '8px' }}>
+                      <div>
+                        <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Estimate</label>
+                        <input 
+                          type="number" 
+                          value={taskFormEstTime} 
+                          onChange={(e) => setTaskFormEstTime(Math.max(0, parseInt(e.target.value) || 0))} 
+                          className="glass-input" 
+                          style={{ width: '100%', padding: '6px 10px', fontSize: '13px' }} 
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Logged</label>
+                        <input 
+                          type="number" 
+                          value={taskFormSpentTime} 
+                          onChange={(e) => setTaskFormSpentTime(Math.max(0, parseInt(e.target.value) || 0))} 
+                          className="glass-input" 
+                          style={{ width: '100%', padding: '6px 10px', fontSize: '13px' }} 
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Add Spent Time Manually</label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input 
+                          type="number" 
+                          placeholder="e.g. 15 mins" 
+                          value={manualTimeToAddText} 
+                          onChange={(e) => setManualTimeToAddText(e.target.value)} 
+                          className="glass-input" 
+                          style={{ flex: 1, padding: '6px 10px', fontSize: '13px' }} 
+                        />
+                        <button 
+                          type="button" 
+                          className="glass-button" 
+                          style={{ padding: '6px 12px', fontSize: '12px' }}
+                          onClick={() => {
+                            const val = parseInt(manualTimeToAddText);
+                            if (!isNaN(val) && val > 0) {
+                              setTaskFormSpentTime((prev) => prev + val);
+                              setManualTimeToAddText('');
+                            }
+                          }}
+                        >
+                          Add Time
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pin Option & Tags */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(139, 92, 246, 0.05)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(139, 92, 246, 0.15)' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-purple-light)' }}>Pin to Dashboard Widget</span>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={taskFormIsPinned} 
+                        onChange={(e) => setTaskFormIsPinned(e.target.checked)} 
+                        style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--color-purple)' }} 
+                      />
+                    </label>
+                  </div>
+
+                  {/* Links Section */}
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Web Links</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <input 
+                          type="text" 
+                          placeholder="Link Name (e.g. Doc)" 
+                          value={newLinkNameText} 
+                          onChange={(e) => setNewLinkNameText(e.target.value)} 
+                          className="glass-input" 
+                          style={{ flex: 0.8, padding: '6px 10px', fontSize: '12px' }} 
+                        />
+                        <input 
+                          type="text" 
+                          placeholder="URL (https://...)" 
+                          value={newLinkUrlText} 
+                          onChange={(e) => setNewLinkUrlText(e.target.value)} 
+                          className="glass-input" 
+                          style={{ flex: 1.2, padding: '6px 10px', fontSize: '12px' }} 
+                        />
+                        <button 
+                          type="button" 
+                          className="glass-button" 
+                          style={{ padding: '6px 10px' }}
+                          onClick={() => {
+                            if (!newLinkNameText.trim() || !newLinkUrlText.trim()) return;
+                            let formattedUrl = newLinkUrlText.trim();
+                            if (!/^https?:\/\//i.test(formattedUrl)) {
+                              formattedUrl = 'https://' + formattedUrl;
+                            }
+                            setTaskFormLinks((prev) => [
+                              ...prev,
+                              { name: newLinkNameText.trim(), url: formattedUrl }
+                            ]);
+                            setNewLinkNameText('');
+                            setNewLinkUrlText('');
+                          }}
+                        >
+                          Link
+                        </button>
+                      </div>
+                    </div>
+
+                    {taskFormLinks.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {taskFormLinks.map((lnk, idx) => (
+                          <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '3px 8px', fontSize: '11px' }}>
+                            <a href={lnk.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-purple-light)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <Link size={10} />
+                              <span>{lnk.name}</span>
+                            </a>
+                            <button 
+                              type="button" 
+                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', padding: 0, display: 'flex', alignItems: 'center' }} 
+                              onClick={() => setTaskFormLinks((prev) => prev.filter((_, i) => i !== idx))}
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Attachments Section */}
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Attachments (Images & Files)</label>
+                    <div style={{ position: 'relative', width: '100%', marginBottom: '8px' }}>
+                      <input 
+                        type="file" 
+                        multiple 
+                        onChange={handleTaskAttachmentUpload} 
+                        style={{ display: 'none' }} 
+                        id="task-file-upload-input" 
+                      />
+                      <label 
+                        htmlFor="task-file-upload-input" 
+                        className="glass-button" 
+                        style={{ width: '100%', cursor: 'pointer', borderStyle: 'dashed', padding: '8px 14px', fontSize: '12px' }}
+                      >
+                        <Paperclip size={14} /> Upload Images or Files
+                      </label>
+                    </div>
+
+                    {taskFormAttachments.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '160px', overflowY: 'auto' }}>
+                        {taskFormAttachments.map((att) => (
+                          <div 
+                            key={att.id} 
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between', 
+                              background: 'rgba(255,255,255,0.03)', 
+                              border: '1px solid rgba(255,255,255,0.06)', 
+                              borderRadius: '8px', 
+                              padding: '6px 10px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                              {att.type.startsWith('image/') ? (
+                                <img src={att.dataUrl} alt={att.name} style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: '32px', height: '32px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Paperclip size={14} style={{ color: 'var(--text-secondary)' }} />
+                                </div>
+                              )}
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ fontSize: '12px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</div>
+                                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{(att.size / 1024).toFixed(0)} KB</div>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '8px' }}>
+                              <a href={att.dataUrl} download={att.name} className="glass-button" style={{ padding: '4px 8px', fontSize: '11px', background: 'rgba(255,255,255,0.05)' }}>
+                                Download
+                              </a>
+                              <button 
+                                type="button" 
+                                className="glass-button" 
+                                style={{ padding: '4px 8px', fontSize: '11px', background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}
+                                onClick={() => setTaskFormAttachments((prev) => prev.filter(item => item.id !== att.id))}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Tags Section */}
+              <div>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Tags (Press space or click Add)</label>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Enter tags..." 
+                    value={taskFormTagInput}
+                    onChange={(e) => setTaskFormTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        const tag = taskFormTagInput.trim();
+                        if (tag && !taskFormTags.includes(tag)) {
+                          setTaskFormTags([...taskFormTags, tag]);
+                          setTaskFormTagInput('');
+                        }
+                      }
+                    }}
+                    className="glass-input"
+                    style={{ flex: 1, padding: '6px 12px', fontSize: '13px' }}
+                  />
+                  <button 
+                    type="button" 
+                    className="glass-button" 
+                    onClick={() => {
+                      const tag = taskFormTagInput.trim();
+                      if (tag && !taskFormTags.includes(tag)) {
+                        setTaskFormTags([...taskFormTags, tag]);
+                        setTaskFormTagInput('');
+                      }
+                    }}
+                  >
+                    Add Tag
+                  </button>
+                </div>
+                {taskFormTags.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {taskFormTags.map((tag) => (
+                      <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: 'var(--color-purple-light)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
+                        <span>{tag}</span>
+                        <button type="button" style={{ background: 'none', border: 'none', color: 'var(--color-purple-light)', cursor: 'pointer', padding: 0 }} onClick={() => setTaskFormTags(taskFormTags.filter(t => t !== tag))}>
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Form Footer Action Buttons */}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '16px', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
+                <div>
+                  {editingTaskId && (
+                    <button 
+                      type="button" 
+                      className="glass-button" 
+                      style={{ background: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}
+                      onClick={() => handleDeleteTask(editingTaskId)}
+                    >
+                      Delete Task
+                    </button>
+                  )}
+                </div>
+                
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button type="button" className="glass-button" onClick={() => setIsTaskModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="glass-button active">
+                    {editingTaskId ? 'Save Changes' : 'Create Task'}
+                  </button>
+                </div>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

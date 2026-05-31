@@ -65,6 +65,10 @@ export interface Task {
   isArchived: boolean;
   createdAt: string;
   completedAt?: string;
+  notes?: string;
+  links?: { name: string; url: string }[];
+  attachments?: { id: string; name: string; type: string; dataUrl: string; size: number }[];
+  isPinned?: boolean;
 }
 
 export interface VoiceReminder {
