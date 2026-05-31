@@ -184,6 +184,7 @@ export interface AppSettings {
   auraConfig: AuraConfig;
   focusModes: FocusMode[];
   isAuraActive: boolean; // overlay activation state
+  userName?: string;
   themeBgColor?: string;
   themeBgImage?: string;
   categoryColors?: Record<string, string>;

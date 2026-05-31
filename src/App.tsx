@@ -866,7 +866,7 @@ function MainDashboardApp() {
   const handleFocusSessionCompleted = () => {
     if (!state) return;
 
-    speakText("Great job, Sai. Focus session completed. Take a break.", state.settings);
+    speakText(`Great job, ${state.settings.userName || 'user'}. Focus session completed. Take a break.`, state.settings);
     setTimerStreak(prev => prev + 1);
 
     const now = new Date().toISOString();
@@ -922,14 +922,14 @@ function MainDashboardApp() {
             if (prev <= 1) {
               clearInterval(id);
               setBreakStatus('idle');
-              if (state) speakText("Sai, your break has completed. Get back to focus.", state.settings, 1);
+              if (state) speakText(`${state.settings.userName || 'user'}, your break has completed. Get back to focus.`, state.settings, 1);
               return 0;
             }
             return prev - 1;
           });
         } else {
           if (currentTotalBreakSecs > 0 && currentTotalBreakSecs % 600 === 0 && state) {
-            speakText("Sai, your break has exceeded ten minutes. Please return to work.", state.settings, 3);
+            speakText(`${state.settings.userName || 'user'}, your break has exceeded ten minutes. Please return to work.`, state.settings, 3);
           }
         }
       }, 1000);
@@ -1120,7 +1120,7 @@ function MainDashboardApp() {
     if (!state) return;
 
     const mode = state.settings.currentFocusMode;
-    let message = "Sai, get back to work.";
+    let message = `${state.settings.userName || 'user'}, get back to work.`;
 
     if (mode === 'auradev') {
       message = "Time to work on Aura.";
@@ -2880,7 +2880,7 @@ function MainDashboardApp() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                   <div>
-                    <h2 style={{ fontSize: '32px', fontWeight: 700, margin: 0 }}>Welcome Back, Sai</h2>
+                    <h2 style={{ fontSize: '32px', fontWeight: 700, margin: 0 }}>Welcome Back, {state.settings.userName || 'user'}</h2>
                     <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Here is your Orb productivity report for today, {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}.</p>
                   </div>
                   {/* Preset layout selector */}
@@ -4811,7 +4811,7 @@ function MainDashboardApp() {
 
                         <button
                           className="glass-button active"
-                          onClick={() => playAlertAndSpeak("Sai, keep up the focus!", 'chime')}
+                          onClick={() => playAlertAndSpeak(`${state.settings.userName || 'user'}, keep up the focus!`, 'chime')}
                         >
                           Test Audio & Voice
                         </button>
@@ -6127,9 +6127,33 @@ function MainDashboardApp() {
                   </div>
 
                   {/* Right Side: OS Interface, Zoom & Typography */}
-                  <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div>
-                      <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>OS Interface, Zoom & Typography</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+                    {/* User Profile */}
+                    <div className="glass-panel" style={{ padding: '24px' }}>
+                      <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>User Profile</h3>
+                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>Configure your display name for system greetings and reminders.</p>
+                      <div>
+                        <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Display Name</label>
+                        <input
+                          type="text"
+                          className="glass-input"
+                          style={{ color: '#fff', width: '100%', padding: '10px 14px', fontSize: '14px' }}
+                          value={state.settings.userName || ''}
+                          placeholder="user"
+                          onChange={(e) => {
+                            updateSettings({ userName: e.target.value });
+                          }}
+                        />
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '6px' }}>
+                          This name is used for system greetings and voice notifications.
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      <div>
+                        <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>OS Interface, Zoom & Typography</h3>
                       <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>Customize typography, adjust levels scaling, and zoom limits across the system.</p>
                     </div>
 
@@ -6261,6 +6285,7 @@ function MainDashboardApp() {
                       </p>
                     </div>
                   </div>
+                </div>
 
                 </div>
               </div>
@@ -6978,7 +7003,7 @@ function MainDashboardApp() {
                   <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Speech Message Text</label>
                   <input
                     type="text"
-                    placeholder="Sai, it is time to work..."
+                    placeholder="user, it is time to work..."
                     required
                     value={remFormMessage}
                     onChange={(e) => setRemFormMessage(e.target.value)}

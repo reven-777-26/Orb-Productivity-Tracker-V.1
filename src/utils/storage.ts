@@ -181,7 +181,7 @@ export const INITIAL_TASKS: Task[] = [
 export const INITIAL_REMINDERS: VoiceReminder[] = [
   {
     id: 'r1',
-    message: 'Sai, it is time to work on Aura.',
+    message: 'user, it is time to work on Aura.',
     type: 'daily',
     time: '10:00',
     isCompleted: false,
@@ -190,7 +190,7 @@ export const INITIAL_REMINDERS: VoiceReminder[] = [
   },
   {
     id: 'r2',
-    message: 'Sai, time for job applications.',
+    message: 'user, time for job applications.',
     type: 'daily',
     time: '14:00',
     isCompleted: false,
@@ -199,7 +199,7 @@ export const INITIAL_REMINDERS: VoiceReminder[] = [
   },
   {
     id: 'r3',
-    message: 'Sai, stop scrolling and get back to work!',
+    message: 'user, stop scrolling and get back to work!',
     type: 'daily',
     time: '16:30',
     isCompleted: false,
@@ -208,7 +208,7 @@ export const INITIAL_REMINDERS: VoiceReminder[] = [
   },
   {
     id: 'r4',
-    message: 'Sai, it is time for French practice.',
+    message: 'user, it is time for French practice.',
     type: 'weekly',
     time: '18:00',
     isCompleted: false,
@@ -271,7 +271,7 @@ const DEFAULT_FOCUS_MODES: FocusMode[] = [
     id: 'auradev',
     name: 'Aura Development Mode',
     reminderInterval: 10,
-    voiceReminders: ['Sai, time to work on Aura.', 'Sai, make progress on the desktop shell.', 'Work on Aura focus animations.'],
+    voiceReminders: ['user, time to work on Aura.', 'user, make progress on the desktop shell.', 'Work on Aura focus animations.'],
     borderStyle: 'flowing',
     colors: ['#8b5cf6', '#c084fc', '#3b82f6'],
     productivityGoals: ['Optimize GPU graphics acceleration', 'Test transparent ignore-mouse window', 'Refine edge gradients']
@@ -280,7 +280,7 @@ const DEFAULT_FOCUS_MODES: FocusMode[] = [
     id: 'jobsearch',
     name: 'Job Search Mode',
     reminderInterval: 15,
-    voiceReminders: ['Sai, time for job applications.', 'Submit senior developer roles.', 'Reach out to recruiters.'],
+    voiceReminders: ['user, time for job applications.', 'Submit senior developer roles.', 'Reach out to recruiters.'],
     borderStyle: 'flowing',
     colors: ['#3b82f6', '#22d3ee', '#8b5cf6'],
     productivityGoals: ['Send 3 job applications today', 'Update LinkedIn profile info', 'Review resume layouts']
@@ -289,7 +289,7 @@ const DEFAULT_FOCUS_MODES: FocusMode[] = [
     id: 'deepwork',
     name: 'Deep Work Mode',
     reminderInterval: 20,
-    voiceReminders: ['Sai, avoid distractions and focus.', 'Sai, enter deep work focus.', 'Keep working on your core tasks.'],
+    voiceReminders: ['user, avoid distractions and focus.', 'user, enter deep work focus.', 'Keep working on your core tasks.'],
     borderStyle: 'flowing',
     colors: ['#8b5cf6', '#12121a', '#c084fc'],
     productivityGoals: ['Write clean TypeScript interfaces', 'Debug race conditions in database', 'Implement main process window controls']
@@ -298,7 +298,7 @@ const DEFAULT_FOCUS_MODES: FocusMode[] = [
     id: 'study',
     name: 'Study Mode',
     reminderInterval: 15,
-    voiceReminders: ['Sai, open your textbook.', 'Take notes on design principles.', 'Review algorithmic complexity sheets.'],
+    voiceReminders: ['user, open your textbook.', 'Take notes on design principles.', 'Review algorithmic complexity sheets.'],
     borderStyle: 'pulse',
     colors: ['#10b981', '#3b82f6', '#22d3ee'],
     productivityGoals: ['Complete lesson 4 exercises', 'Write study summary guidelines', 'Solve 2 sorting challenges']
@@ -307,7 +307,7 @@ const DEFAULT_FOCUS_MODES: FocusMode[] = [
     id: 'learning',
     name: 'Learning Mode',
     reminderInterval: 10,
-    voiceReminders: ['Sai, it is time for French practice.', 'Speak aloud in French.', 'Review your vocabulary deck.'],
+    voiceReminders: ['user, it is time for French practice.', 'Speak aloud in French.', 'Review your vocabulary deck.'],
     borderStyle: 'flowing',
     colors: ['#c084fc', '#f472b6', '#f59e0b'],
     productivityGoals: ['Learn 20 new vocabulary terms', 'Practice French listening drills', 'Review grammar structure rules']
@@ -316,7 +316,7 @@ const DEFAULT_FOCUS_MODES: FocusMode[] = [
     id: 'workout',
     name: 'Workout Mode',
     reminderInterval: 5,
-    voiceReminders: ['Sai, get moving!', 'Sai, start your exercise routine.', 'Time to lift or run.'],
+    voiceReminders: ['user, get moving!', 'user, start your exercise routine.', 'Time to lift or run.'],
     borderStyle: 'pulse',
     colors: ['#ef4444', '#f59e0b', '#f472b6'],
     productivityGoals: ['Complete 30 minutes training', 'Stretch for mobility improvement', 'Log hydration levels']
@@ -325,7 +325,7 @@ const DEFAULT_FOCUS_MODES: FocusMode[] = [
     id: 'gaming',
     name: 'Gaming Mode',
     reminderInterval: 30,
-    voiceReminders: ['Sai, gaming session limit reached. Stop scroll or play.', 'Time to wrap up the game.', 'Sai, take a break from screen play.'],
+    voiceReminders: ['user, gaming session limit reached. Stop scroll or play.', 'Time to wrap up the game.', 'user, take a break from screen play.'],
     borderStyle: 'solid',
     colors: ['#22d3ee', '#10b981', '#ef4444'],
     productivityGoals: ['Enforce 1 hour session maximum', 'Log breaks in between rounds', 'Rest your eyes for 5 minutes']
@@ -334,7 +334,7 @@ const DEFAULT_FOCUS_MODES: FocusMode[] = [
     id: 'custom',
     name: 'Custom Mode',
     reminderInterval: 15,
-    voiceReminders: ['Sai, time to focus on your goals.', 'Sai, check your task scheduler.', 'Get back to productivity.'],
+    voiceReminders: ['user, time to focus on your goals.', 'user, check your task scheduler.', 'Get back to productivity.'],
     borderStyle: 'flowing',
     colors: ['#d946ef', '#c084fc', '#ffffff'],
     productivityGoals: ['Define custom goals of the hour', 'Organize notes categories list', 'Log custom expenses logged']
@@ -342,17 +342,18 @@ const DEFAULT_FOCUS_MODES: FocusMode[] = [
 ];
 
 export const INITIAL_SETTINGS: AppSettings = {
+  userName: 'user',
   focusInterval: 15,
   ttsVoice: '',
   ttsVolume: 0.8,
   ttsSpeed: 1.0,
   strictModeEnabled: false,
   customFocusMessages: [
-    'Sai, it is time to work on Orb.',
-    'Sai, time for job applications.',
-    'Sai, stop scrolling and get back to work.',
-    'Sai, it is time for French practice.',
-    'Sai, take a break.'
+    'user, it is time to work on Orb.',
+    'user, time for job applications.',
+    'user, stop scrolling and get back to work.',
+    'user, it is time for French practice.',
+    'user, take a break.'
   ],
   currentFocusMode: 'deepwork',
   shortcuts: {

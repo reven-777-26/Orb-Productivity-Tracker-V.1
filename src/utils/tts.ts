@@ -24,10 +24,9 @@ export const getAvailableVoices = (): Promise<SpeechSynthesisVoice[]> => {
     }, 1000);
   });
 };
-
 export const speakText = async (
   text: string,
-  settings: { ttsVoice: string; ttsVolume: number; ttsSpeed: number },
+  settings: { ttsVoice: string; ttsVolume: number; ttsSpeed: number; userName?: string },
   escalationLevel: number = 1
 ): Promise<void> => {
   // Cancel any ongoing speech
@@ -37,22 +36,29 @@ export const speakText = async (
   const voice = voices.find((v) => v.name === settings.ttsVoice) || null;
 
   // Enhance text or pitch based on strict escalation level
+  const userName = settings.userName || 'user';
   let processedText = text;
+
+  // Replace placeholder word "user" (case-insensitive) with actual username
+  if (userName.toLowerCase() !== 'user') {
+    processedText = processedText.replace(/\buser\b/gi, userName);
+  }
+
   let rate = settings.ttsSpeed;
   let pitch = 1.0;
   let volume = settings.ttsVolume;
 
   if (escalationLevel === 2) {
-    processedText = `Attention: ${text}`;
+    processedText = `Attention: ${processedText}`;
     pitch = 1.1;
     rate = rate * 1.1;
   } else if (escalationLevel === 3) {
-    processedText = `Warning! Sai! ${text}`;
+    processedText = `Warning! ${userName}! ${processedText}`;
     pitch = 1.25;
     rate = rate * 1.2;
     volume = Math.min(1.0, volume * 1.2);
   } else if (escalationLevel >= 4) {
-    processedText = `CRITICAL FOCUS ENFORCEMENT! Sai, you must stop procrastinating immediately! ${text}`;
+    processedText = `CRITICAL FOCUS ENFORCEMENT! ${userName}, you must stop procrastinating immediately! ${processedText}`;
     pitch = 1.4;
     rate = rate * 1.3;
     volume = 1.0;
