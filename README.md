@@ -5,9 +5,14 @@
 Orb OS is a desktop application built to streamline your daily workflows, help you stick to goals, manage events, and track breaks. Designed with a dark glassmorphism aesthetic and a focus on premium user experience, Orb OS offers an immersive productivity dashboard.
 
 ---
+## 📥 Download
 
+Download the latest Windows release here:
+
+https://github.com/reven-777-26/Orb-Productivity-Tracker-V.1/releases/latest
 ## 🌌 Offline-First Philosophy
 
+---
 Orb OS operates entirely locally on your machine. Your goals, logs, settings, and notes are written to an offline JSON database inside your application data directory.
 * **100% Privacy**: No data is transmitted to external servers.
 * **No Accounts Required**: Start tracking immediately after installation.
