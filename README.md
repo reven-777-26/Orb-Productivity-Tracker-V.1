@@ -36,21 +36,21 @@ Orb OS operates entirely locally on your machine. Your goals, logs, settings, an
 
 To give you a preview of the user interface:
 
-| Dashboard | Goals Grid |
+| Dashboard | Goals Dashboard |
 | :---: | :---: |
-| ![Dashboard](./screenshots/dashboard.png) | ![Goals Grid](./screenshots/goals.png) |
+| ![Dashboard](./screenshots/1.Dashboard.jpg) | ![Goals Dashboard](./screenshots/2.%20Goals%20Dashboard.jpg) |
 
 | Kanban Board | Schedule Planner |
 | :---: | :---: |
-| ![Kanban Board](./screenshots/kanban.png) | ![Schedule Planner](./screenshots/schedule.png) |
+| ![Kanban Board](./screenshots/3.%20Kanban%20Board.jpg) | ![Schedule Planner](./screenshots/4.%20Schedule%20Planner.jpg) |
 
-| Focus Timer | Notes Workspace |
+| Voice Reminders | Notes Workspace |
 | :---: | :---: |
-| ![Focus Timer](./screenshots/focus.png) | ![Notes Workspace](./screenshots/notes.png) |
+| ![Voice Reminders](./screenshots/5.%20Voice%20Remainders.jpg) | ![Notes Workspace](./screenshots/6.%20Notes%20Workspace.jpg) |
 
-| Analytics Donut | Settings Panel |
+| Analytics Center | Settings Panel |
 | :---: | :---: |
-| ![Analytics Donut](./screenshots/analytics.png) | ![Settings Panel](./screenshots/settings.png) |
+| ![Analytics Center](./screenshots/7.%20Analytic%20Center.jpg) | ![Settings Panel](./screenshots/8.%20Settings%20Panel.jpg) |
 
 ---
 
