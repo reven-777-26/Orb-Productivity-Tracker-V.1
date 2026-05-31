@@ -148,6 +148,10 @@ function FocusAuraOverlay() {
   } | null>(null);
 
   useEffect(() => {
+    // Make body background transparent for the overlay window to prevent solid black screen covering desktop
+    document.body.style.backgroundColor = 'transparent';
+    document.body.style.background = 'transparent';
+
     const handleDraw = (overlayData: any) => {
       setData(overlayData);
     };
