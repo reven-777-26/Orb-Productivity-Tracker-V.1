@@ -28,12 +28,7 @@ Orb OS operates entirely locally on your machine. Your goals, logs, settings, an
 * **Voice Reminders & Aura System**: Ambient voice system notifies you of strict reminders. Control focus states using system hotkeys.
 * **Rich Notes Workspace**: Fully functional text workspace with URL link embedding, image attachment, and custom text coloring/highlighting.
 * **Interactive Analytics**: Conic-gradient donut charts illustrating time distribution across categories, filterable by time ranges.
-* **System Tray integration & Hotkeys**: Seamlessly runs in the background and responds to keyboard shortcuts:
-  * `Ctrl+Shift+F`: Toggle Aura state
-  * `Ctrl+Shift+T`: Start focus session
-  * `Ctrl+Shift+B`: Start break
-  * `Ctrl+Shift+N`: Open quick note entry
-  * Custom loop dismissal key (default `D`) configured via Settings.
+* **System Tray integration**: Seamlessly runs in the background with fully customisation
 
 ---
 
