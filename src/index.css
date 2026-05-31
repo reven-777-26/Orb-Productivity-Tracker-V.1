@@ -376,3 +376,32 @@ p {
 .grid {
   display: grid;
 }
+
+@keyframes pulse-bg-red-purple {
+  0%, 100% {
+    background: rgba(5, 2, 10, 0.94);
+  }
+  50% {
+    background: rgba(20, 5, 20, 0.97);
+  }
+}
+
+@keyframes border-flash-flow {
+  0%, 100% {
+    border-color: rgba(239, 68, 68, 0.2);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.8);
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

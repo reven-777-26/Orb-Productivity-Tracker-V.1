@@ -69,16 +69,26 @@ export interface Task {
   links?: { name: string; url: string }[];
   attachments?: { id: string; name: string; type: string; dataUrl: string; size: number }[];
   isPinned?: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string;
 }
 
 export interface VoiceReminder {
   id: string;
   message: string;
-  type: 'daily' | 'weekly' | 'one-time';
+  type: 'daily' | 'weekly' | 'one-time' | 'countdown' | 'interval';
   time: string; // "HH:MM"
   isCompleted: boolean;
   category: string;
   isActive: boolean;
+  soundEffect?: string;
+  countdownMinutes?: number;
+  intervalMinutes?: number;
+  daysOfWeek?: string[];
+  elapsedSeconds?: number;
+  isLoopingAlert?: boolean;
+  requireShortcutToDismiss?: boolean;
+  dismissKey?: string;
 }
 
 export type FocusSessionType = 'pomodoro' | 'deepwork' | 'custom' | 'stopwatch';
@@ -112,6 +122,7 @@ export interface Note {
   isPinned: boolean;
   lastModified: string;
   type: NoteType;
+  isBookmarked?: boolean;
 }
 
 export type FinanceType = 'savings' | 'debt' | 'income' | 'expense';
@@ -127,6 +138,19 @@ export interface FinanceRecord {
   targetAmount?: number;
   progressAmount?: number;
   targetMonth?: Month;
+  note?: string;
+  color?: string;
+}
+
+export interface Subscription {
+  id: string;
+  name: string;
+  amount: number;
+  billingCycle: 'monthly' | 'yearly';
+  renewalDate: string; // YYYY-MM-DD
+  status: 'active' | 'paused';
+  category: string;
+  color?: string;
 }
 
 export interface FocusMode {
@@ -160,6 +184,24 @@ export interface AppSettings {
   auraConfig: AuraConfig;
   focusModes: FocusMode[];
   isAuraActive: boolean; // overlay activation state
+  themeBgColor?: string;
+  themeBgImage?: string;
+  categoryColors?: Record<string, string>;
+  fontSizeZoom?: number;
+  appFontFamily?: string;
+  autoDeleteAfter15Days?: boolean;
+  titleSizeZoom?: number;
+  bodySizeZoom?: number;
+  sidebarSizeZoom?: number;
+  pinFinanceToDashboard?: boolean;
+  customReminderSound?: string;
+  breakAllowanceMinutes?: number;
+  customFolders?: string[];
+  useDemoData?: boolean;
+  loopDismissKey?: string;
+  customReminderSounds?: Array<{ id: string; name: string; dataUrl: string }>;
+  themeAccentColor?: string;
+  dashboardLayout?: { col1: string[]; col2: string[]; col3: string[]; };
 }
 
 export interface DailyActivityLog {
@@ -172,6 +214,15 @@ export interface DailyActivityLog {
   productivityScore: number; // 0 to 100
 }
 
+export interface ScheduleBlock {
+  id: string;
+  startTime: string; // "HH:MM"
+  endTime: string; // "HH:MM"
+  task: string;
+  color: string;
+  category?: string;
+}
+
 export interface AppState {
   goals: Goal[];
   tasks: Task[];
@@ -182,4 +233,6 @@ export interface AppState {
   finances: FinanceRecord[];
   settings: AppSettings;
   activityLog: DailyActivityLog[];
+  subscriptions?: Subscription[];
+  scheduleBlocks?: ScheduleBlock[];
 }

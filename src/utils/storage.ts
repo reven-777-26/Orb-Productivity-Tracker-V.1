@@ -1,6 +1,6 @@
-import type { AppState, Goal, Task, VoiceReminder, Note, FinanceRecord, AppSettings, DailyActivityLog, FocusMode } from '../types';
+import type { AppState, Goal, Task, VoiceReminder, Note, AppSettings, DailyActivityLog, FocusMode } from '../types';
 
-const INITIAL_GOALS: Goal[] = [
+export const INITIAL_GOALS: Goal[] = [
   {
     id: 'g1',
     title: 'Launch Orb Desktop Application v1.0',
@@ -82,7 +82,7 @@ const INITIAL_GOALS: Goal[] = [
   }
 ];
 
-const INITIAL_TASKS: Task[] = [
+export const INITIAL_TASKS: Task[] = [
   {
     id: 't1',
     title: 'Code the transparent, click-through overlay window in main.js',
@@ -178,7 +178,7 @@ const INITIAL_TASKS: Task[] = [
   }
 ];
 
-const INITIAL_REMINDERS: VoiceReminder[] = [
+export const INITIAL_REMINDERS: VoiceReminder[] = [
   {
     id: 'r1',
     message: 'Sai, it is time to work on Aura.',
@@ -217,15 +217,17 @@ const INITIAL_REMINDERS: VoiceReminder[] = [
   }
 ];
 
-const INITIAL_NOTES: Note[] = [
+export const INITIAL_NOTES: Note[] = [
   {
     id: 'n1',
     title: 'Aura Tech Architecture Ideas',
-    content: `## Technology Stack for Focus Aura
-*   **Window overlay**: Frameless transparent Electron browser window.
-*   **Performance**: GPU accelerated animations. Use CSS conic-gradient rotation.
-*   **Click events**: Set ignore mouse events to allow clicking applications underneath.
-*   **Strict focus mode**: Toggle mouse capturing, dim screen with black overlay, and force user to click "I acknowledge" button before returning to work.`,
+    content: `<h2>Technology Stack for Focus Aura</h2>
+<ul>
+  <li><strong>Window overlay</strong>: Frameless transparent Electron browser window.</li>
+  <li><strong>Performance</strong>: GPU accelerated animations. Use CSS conic-gradient rotation.</li>
+  <li><strong>Click events</strong>: Set ignore mouse events to allow clicking applications underneath.</li>
+  <li><strong>Strict focus mode</strong>: Toggle mouse capturing, dim screen with black overlay, and force user to click "I acknowledge" button before returning to work.</li>
+</ul>`,
     category: 'Aura',
     tags: ['architecture', 'ideas', 'electron'],
     folder: 'Work',
@@ -236,10 +238,12 @@ const INITIAL_NOTES: Note[] = [
   {
     id: 'n2',
     title: 'Daily Journal - May 31',
-    content: `### Focus & Energy Level: High
-*   **What went well today**: Built the boilerplate code and configured the CSS design system for Orb OS. It looks incredibly sleek.
-*   **Struggles**: Spent a little time figuring out the transparent mouse ignore API for Windows in Electron, but got it sorted.
-*   **Goals for tomorrow**: Finalize TTS speech trigger and build out the Kanban card drag-and-drop system.`,
+    content: `<h3>Focus &amp; Energy Level: High</h3>
+<ul>
+  <li><strong>What went well today</strong>: Built the boilerplate code and configured the CSS design system for Orb OS. It looks incredibly sleek.</li>
+  <li><strong>Struggles</strong>: Spent a little time figuring out the transparent mouse ignore API for Windows in Electron, but got it sorted.</li>
+  <li><strong>Goals for tomorrow</strong>: Finalize TTS speech trigger and build out the Kanban card drag-and-drop system.</li>
+</ul>`,
     category: 'Journal',
     tags: ['journal', 'daily'],
     folder: 'Journal',
@@ -260,54 +264,7 @@ const INITIAL_NOTES: Note[] = [
   }
 ];
 
-const INITIAL_FINANCES: FinanceRecord[] = [
-  {
-    id: 'f1',
-    type: 'savings',
-    title: 'Emergency Fund Goal',
-    amount: 10000,
-    category: 'Savings',
-    date: '2026-05-31',
-    progressAmount: 6000,
-    targetAmount: 10000,
-    targetMonth: 'July'
-  },
-  {
-    id: 'f2',
-    type: 'debt',
-    title: 'Student Loan Payoff',
-    amount: 4500,
-    category: 'Debt',
-    date: '2026-05-31',
-    progressAmount: 1500,
-    targetAmount: 4500,
-    targetMonth: 'December'
-  },
-  {
-    id: 'f3',
-    type: 'income',
-    title: 'Consulting Project Invoice',
-    amount: 3200,
-    category: 'Contracting',
-    date: '2026-05-28'
-  },
-  {
-    id: 'f4',
-    type: 'expense',
-    title: 'Monthly Workspace Rent',
-    amount: 450,
-    category: 'Office',
-    date: '2026-05-25'
-  },
-  {
-    id: 'f5',
-    type: 'expense',
-    title: 'Hardware Upgrade (GPU)',
-    amount: 850,
-    category: 'Equipment',
-    date: '2026-05-15'
-  }
-];
+
 
 const DEFAULT_FOCUS_MODES: FocusMode[] = [
   {
@@ -416,11 +373,22 @@ export const INITIAL_SETTINGS: AppSettings = {
     mode: 'normal'
   },
   focusModes: DEFAULT_FOCUS_MODES,
-  isAuraActive: false
+  isAuraActive: false,
+  fontSizeZoom: 100,
+  appFontFamily: 'Outfit',
+  autoDeleteAfter15Days: true,
+  titleSizeZoom: 100,
+  bodySizeZoom: 100,
+  sidebarSizeZoom: 100,
+  pinFinanceToDashboard: false,
+  breakAllowanceMinutes: 60,
+  customFolders: ['Work', 'Personal', 'Journal', 'Drafts'],
+  themeAccentColor: '#8b5cf6',
+  dashboardLayout: { col1: ['tasks', 'goals'], col2: ['focusTimer', 'breakTimer'], col3: ['schedule', 'stats'] }
 };
 
 // Generate 14 days of realistic productivity activity logs
-const generateActivityLogs = (): DailyActivityLog[] => {
+export const generateActivityLogs = (): DailyActivityLog[] => {
   const logs: DailyActivityLog[] = [];
   const today = new Date();
   
@@ -457,16 +425,31 @@ const generateActivityLogs = (): DailyActivityLog[] => {
   return logs;
 };
 
-const DEFAULT_STATE: AppState = {
-  goals: INITIAL_GOALS,
-  tasks: INITIAL_TASKS,
-  reminders: INITIAL_REMINDERS,
+export const INITIAL_SCHEDULE_BLOCKS = [
+  { id: 'sb1', startTime: '09:00', endTime: '10:00', task: 'Review email / Daily Plan', color: '#3b82f6', category: 'General' },
+  { id: 'sb2', startTime: '10:00', endTime: '12:00', task: 'Work on Orb Electron desktop shell', color: '#8b5cf6', category: 'Work' },
+  { id: 'sb3', startTime: '13:00', endTime: '15:00', task: 'Submit Senior Dev Job Applications', color: '#f97316', category: 'Career' },
+  { id: 'sb4', startTime: '15:00', endTime: '16:30', task: 'French practice / Conversation classes', color: '#ec4899', category: 'Learning' },
+  { id: 'sb5', startTime: '17:00', endTime: '18:00', task: 'Exercise session', color: '#10b981', category: 'Health' }
+];
+
+export const DEFAULT_STATE: AppState = {
+  goals: [],
+  tasks: [],
+  reminders: [],
   focusSessions: [],
   breakSessions: [],
-  notes: INITIAL_NOTES,
-  finances: INITIAL_FINANCES,
-  settings: INITIAL_SETTINGS,
-  activityLog: generateActivityLogs()
+  notes: [],
+  finances: [],
+  settings: {
+    ...INITIAL_SETTINGS,
+    useDemoData: false,
+    loopDismissKey: 'D',
+    customReminderSounds: []
+  },
+  activityLog: [],
+  subscriptions: [],
+  scheduleBlocks: []
 };
 
 export const loadState = async (): Promise<AppState> => {
@@ -477,6 +460,8 @@ export const loadState = async (): Promise<AppState> => {
         return {
           ...DEFAULT_STATE,
           ...data,
+          subscriptions: data.subscriptions || [],
+          scheduleBlocks: data.scheduleBlocks || [],
           // Ensure nested properties are preserved
           settings: { 
             ...DEFAULT_STATE.settings, 
@@ -484,7 +469,7 @@ export const loadState = async (): Promise<AppState> => {
             auraConfig: { ...DEFAULT_STATE.settings.auraConfig, ...(data.settings?.auraConfig || {}) },
             focusModes: data.settings?.focusModes || DEFAULT_STATE.settings.focusModes
           },
-          activityLog: data.activityLog || generateActivityLogs()
+          activityLog: data.activityLog || (data.settings?.useDemoData ? generateActivityLogs() : [])
         };
       }
     } else {
@@ -494,13 +479,15 @@ export const loadState = async (): Promise<AppState> => {
         return {
           ...DEFAULT_STATE,
           ...parsed,
+          subscriptions: parsed.subscriptions || [],
+          scheduleBlocks: parsed.scheduleBlocks || [],
           settings: { 
             ...DEFAULT_STATE.settings, 
             ...parsed.settings,
             auraConfig: { ...DEFAULT_STATE.settings.auraConfig, ...(parsed.settings?.auraConfig || {}) },
             focusModes: parsed.settings?.focusModes || DEFAULT_STATE.settings.focusModes
           },
-          activityLog: parsed.activityLog || generateActivityLogs()
+          activityLog: parsed.activityLog || (parsed.settings?.useDemoData ? generateActivityLogs() : [])
         };
       }
     }
