@@ -146,6 +146,11 @@ p {
   box-shadow: 0 0 10px rgba(139, 92, 246, 0.25);
 }
 
+select option {
+  background-color: #12121a;
+  color: #ffffff;
+}
+
 .glass-button {
   background: rgba(139, 92, 246, 0.15);
   border: 1px solid var(--border-glass-purple);

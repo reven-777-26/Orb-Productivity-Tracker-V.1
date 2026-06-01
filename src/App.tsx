@@ -355,6 +355,13 @@ function MainDashboardApp() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const formatUserText = (text: string): string => {
+    if (!state || !text) return text;
+    const userName = state.settings.userName || 'user';
+    if (userName.toLowerCase() === 'user') return text;
+    return text.replace(/\buser\b/gi, userName);
+  };
+
   // Active Timer and Break States
   const [timerType, setTimerType] = useState<FocusSessionType>('pomodoro');
   const [timerStatus, setTimerStatus] = useState<'idle' | 'running' | 'paused'>('idle');
@@ -611,10 +618,28 @@ function MainDashboardApp() {
       const fetchedVoices = await getAvailableVoices();
       setVoices(fetchedVoices);
 
-      // Select default voice if not set
-      if (loadedState.settings.ttsVoice === '' && fetchedVoices.length > 0) {
-        const defaultVoice = fetchedVoices.find(v => v.lang.includes('en')) || fetchedVoices[0];
-        loadedState.settings.ttsVoice = defaultVoice.name;
+      // Select default female voice with speed 1 if not set or invalid
+      const hasValidVoice = fetchedVoices.some(v => v.name === loadedState.settings.ttsVoice);
+      if ((loadedState.settings.ttsVoice === '' || !hasValidVoice) && fetchedVoices.length > 0) {
+        const femaleKeywords = ['zira', 'samantha', 'siri', 'female', 'hazel', 'susan', 'heera', 'ria', 'mary', 'tessa', 'moira', 'veena', 'karen', 'victoria'];
+        const englishVoices = fetchedVoices.filter(v => v.lang.toLowerCase().includes('en'));
+        
+        let defaultVoice = englishVoices.find(v => 
+          femaleKeywords.some(kw => v.name.toLowerCase().includes(kw))
+        );
+        
+        if (!defaultVoice) {
+          defaultVoice = fetchedVoices.find(v => 
+            femaleKeywords.some(kw => v.name.toLowerCase().includes(kw))
+          );
+        }
+        
+        if (!defaultVoice) {
+          defaultVoice = englishVoices[0] || fetchedVoices[0];
+        }
+        
+        loadedState.settings.ttsVoice = defaultVoice ? defaultVoice.name : '';
+        loadedState.settings.ttsSpeed = 1.0; // default speed to 1
         saveState(loadedState);
       }
 
@@ -640,6 +665,66 @@ function MainDashboardApp() {
     }
     boot();
   }, []);
+
+  // Handle SpeechSynthesis voices dynamically (race conditions or dynamic loading)
+  useEffect(() => {
+    if (!isLoaded || !state) return;
+
+    const handleVoicesChanged = () => {
+      if (typeof window === 'undefined' || !window.speechSynthesis) return;
+      const fetchedVoices = window.speechSynthesis.getVoices();
+      if (fetchedVoices.length > 0) {
+        setVoices(fetchedVoices);
+
+        setState((prev) => {
+          if (!prev) return null;
+          const currentVoice = prev.settings.ttsVoice;
+          const voiceExists = fetchedVoices.some((v) => v.name === currentVoice);
+
+          if ((currentVoice === '' || !voiceExists) && fetchedVoices.length > 0) {
+            const femaleKeywords = ['zira', 'samantha', 'siri', 'female', 'hazel', 'susan', 'heera', 'ria', 'mary', 'tessa', 'moira', 'veena', 'karen', 'victoria'];
+            const englishVoices = fetchedVoices.filter((v) => v.lang.toLowerCase().includes('en'));
+
+            let defaultVoice = englishVoices.find((v) =>
+              femaleKeywords.some((kw) => v.name.toLowerCase().includes(kw))
+            );
+
+            if (!defaultVoice) {
+              defaultVoice = fetchedVoices.find((v) =>
+                femaleKeywords.some((kw) => v.name.toLowerCase().includes(kw))
+              );
+            }
+
+            if (!defaultVoice) {
+              defaultVoice = englishVoices[0] || fetchedVoices[0];
+            }
+
+            const updatedSettings = {
+              ...prev.settings,
+              ttsVoice: defaultVoice ? defaultVoice.name : '',
+              ttsSpeed: 1.0, // default speed to 1
+            };
+            const newState = { ...prev, settings: updatedSettings };
+            saveState(newState);
+            return newState;
+          }
+          return prev;
+        });
+      }
+    };
+
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+      handleVoicesChanged();
+    }
+
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+      }
+    };
+  }, [isLoaded]);
+
 
   // Splash screen auto-dismiss
   useEffect(() => {
@@ -2681,7 +2766,7 @@ function MainDashboardApp() {
                 lineHeight: 1.4,
                 boxShadow: 'inset 0 0 10px rgba(255,255,255,0.02)'
               }}>
-                "{activeLoopingReminder.message}"
+                "{formatUserText(activeLoopingReminder.message)}"
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
@@ -4637,7 +4722,7 @@ function MainDashboardApp() {
                       {state.reminders.map((r: any) => (
                         <div key={r.id} className="glass-card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid rgba(255,255,255,0.08)' }}>
                           <div style={{ flex: 1, marginRight: '16px' }}>
-                            <div style={{ fontWeight: 500, fontSize: '15px', color: '#fff' }}>"{r.message}"</div>
+                            <div style={{ fontWeight: 500, fontSize: '15px', color: '#fff' }}>"{formatUserText(r.message)}"</div>
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
                               <span style={{
                                 display: 'inline-flex',
@@ -4771,15 +4856,21 @@ function MainDashboardApp() {
 
                         <div>
                           <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>Speech Voice Model</label>
-                          <select
+                           <select
                             className="glass-input"
                             style={{ width: '100%', color: '#ffffff' }}
                             value={state.settings.ttsVoice}
                             onChange={(e) => updateSettings({ ttsVoice: e.target.value })}
                           >
-                            {voices.map((v, i) => (
-                              <option key={i} value={v.name}>{v.name} ({v.lang})</option>
-                            ))}
+                            {voices.length === 0 ? (
+                              <option value="" style={{ backgroundColor: '#12121a', color: '#ffffff' }}>Loading voices...</option>
+                            ) : (
+                              voices.map((v, i) => (
+                                <option key={i} value={v.name} style={{ backgroundColor: '#12121a', color: '#ffffff' }}>
+                                  {v.name} ({v.lang})
+                                </option>
+                              ))
+                            )}
                           </select>
                         </div>
 
