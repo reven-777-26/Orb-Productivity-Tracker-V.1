@@ -269,21 +269,21 @@ export const INITIAL_NOTES: Note[] = [
 const DEFAULT_FOCUS_MODES: FocusMode[] = [
   {
     id: 'auradev',
-    name: 'Aura Development Mode',
+    name: 'Development Mode',
     reminderInterval: 10,
-    voiceReminders: ['user, time to work on Aura.', 'user, make progress on the desktop shell.', 'Work on Aura focus animations.'],
+    voiceReminders: ['user, time to work on development.', 'user, make progress on your code.', 'Work on focus tasks.'],
     borderStyle: 'flowing',
     colors: ['#8b5cf6', '#c084fc', '#3b82f6'],
-    productivityGoals: ['Optimize GPU graphics acceleration', 'Test transparent ignore-mouse window', 'Refine edge gradients']
+    productivityGoals: ['Optimize application code', 'Test interface features', 'Refine core components']
   },
   {
     id: 'jobsearch',
-    name: 'Job Search Mode',
+    name: 'Career & Job Search',
     reminderInterval: 15,
-    voiceReminders: ['user, time for job applications.', 'Submit senior developer roles.', 'Reach out to recruiters.'],
+    voiceReminders: ['user, time for job search.', 'Review opportunities.', 'Update your professional profile.'],
     borderStyle: 'flowing',
     colors: ['#3b82f6', '#22d3ee', '#8b5cf6'],
-    productivityGoals: ['Send 3 job applications today', 'Update LinkedIn profile info', 'Review resume layouts']
+    productivityGoals: ['Apply to new opportunities', 'Update professional profile', 'Review cover letters or CVs']
   },
   {
     id: 'deepwork',
@@ -305,12 +305,12 @@ const DEFAULT_FOCUS_MODES: FocusMode[] = [
   },
   {
     id: 'learning',
-    name: 'Learning Mode',
+    name: 'Study & Learning',
     reminderInterval: 10,
-    voiceReminders: ['user, it is time for French practice.', 'Speak aloud in French.', 'Review your vocabulary deck.'],
+    voiceReminders: ['user, it is time to study.', 'Practice your skills.', 'Review your learning material.'],
     borderStyle: 'flowing',
     colors: ['#c084fc', '#f472b6', '#f59e0b'],
-    productivityGoals: ['Learn 20 new vocabulary terms', 'Practice French listening drills', 'Review grammar structure rules']
+    productivityGoals: ['Learn new concepts', 'Practice exercises', 'Review notes and summaries']
   },
   {
     id: 'workout',
@@ -349,10 +349,10 @@ export const INITIAL_SETTINGS: AppSettings = {
   ttsSpeed: 1.0,
   strictModeEnabled: false,
   customFocusMessages: [
-    'user, it is time to work on Orb.',
-    'user, time for job applications.',
-    'user, stop scrolling and get back to work.',
-    'user, it is time for French practice.',
+    'user, avoid distractions and focus.',
+    'user, stay focused on your goals.',
+    'user, keep working on your tasks.',
+    'user, get back to focus.',
     'user, take a break.'
   ],
   currentFocusMode: 'deepwork',

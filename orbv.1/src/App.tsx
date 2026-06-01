@@ -585,6 +585,60 @@ function MainDashboardApp() {
         loadedState.settings.dashboardLayout = { col1: c1, col2: c2, col3: c3 };
       }
 
+      // Migrate old specific default customFocusMessages to new generic ones if they exist
+      if (loadedState.settings && loadedState.settings.customFocusMessages) {
+        const oldMessages = [
+          'user, it is time to work on Orb.',
+          'user, time for job applications.',
+          'user, stop scrolling and get back to work.',
+          'user, it is time for French practice.',
+          'user, take a break.'
+        ];
+        const matchesOldDefault = loadedState.settings.customFocusMessages.length === oldMessages.length &&
+          loadedState.settings.customFocusMessages.every((m: string, i: number) => m === oldMessages[i]);
+
+        if (matchesOldDefault) {
+          loadedState.settings.customFocusMessages = [
+            'user, avoid distractions and focus.',
+            'user, stay focused on your goals.',
+            'user, keep working on your tasks.',
+            'user, get back to focus.',
+            'user, take a break.'
+          ];
+        }
+      }
+
+      // Migrate old focusModes if they contain specific references (e.g. French practice)
+      if (loadedState.settings && loadedState.settings.focusModes) {
+        loadedState.settings.focusModes = loadedState.settings.focusModes.map((fm: any) => {
+          if (fm.id === 'learning' && fm.voiceReminders && fm.voiceReminders.includes('user, it is time for French practice.')) {
+            return {
+              ...fm,
+              name: 'Study & Learning',
+              voiceReminders: ['user, it is time to study.', 'Practice your skills.', 'Review your learning material.'],
+              productivityGoals: ['Learn new concepts', 'Practice exercises', 'Review notes and summaries']
+            };
+          }
+          if (fm.id === 'auradev' && fm.voiceReminders && fm.voiceReminders.includes('user, time to work on Aura.')) {
+            return {
+              ...fm,
+              name: 'Development Mode',
+              voiceReminders: ['user, time to work on development.', 'user, make progress on your code.', 'Work on focus tasks.'],
+              productivityGoals: ['Optimize application code', 'Test interface features', 'Refine core components']
+            };
+          }
+          if (fm.id === 'jobsearch' && fm.voiceReminders && fm.voiceReminders.includes('user, time for job applications.')) {
+            return {
+              ...fm,
+              name: 'Career & Job Search',
+              voiceReminders: ['user, time for job search.', 'Review opportunities.', 'Update your professional profile.'],
+              productivityGoals: ['Apply to new opportunities', 'Update professional profile', 'Review cover letters or CVs']
+            };
+          }
+          return fm;
+        });
+      }
+
       // Auto-cleanup deleted tasks and goals older than 15 days
       const autoClean = loadedState.settings.autoDeleteAfter15Days !== false;
       if (autoClean) {
@@ -858,6 +912,11 @@ function MainDashboardApp() {
   };
 
   const toggleDemoData = (checked: boolean) => {
+    if (!checked) {
+      dismissLoopingReminder();
+      dismissStrictAlert();
+      setIsAuraActive(false);
+    }
     updateState((prev) => {
       if (checked) {
         const note = INITIAL_NOTES[0];
@@ -1221,11 +1280,11 @@ function MainDashboardApp() {
     let message = `${state.settings.userName || 'user'}, get back to work.`;
 
     if (mode === 'auradev') {
-      message = "Time to work on Aura.";
+      message = "Time to work on development.";
     } else if (mode === 'jobsearch') {
-      message = "Send job applications.";
+      message = "Focus on career tasks.";
     } else if (mode === 'learning') {
-      message = "Practice French.";
+      message = "Time to study and learn.";
     } else {
       const prompts = state.settings.customFocusMessages;
       message = prompts[Math.floor(Math.random() * prompts.length)];
@@ -3075,53 +3134,54 @@ function MainDashboardApp() {
 
         {/* LEFT SIDEBAR (Glassmorphic) */}
         {!isWritingFullscreen && (
-          <div style={{ width: '270px', borderRight: '1px solid var(--border-glass-purple)', display: 'flex', flexDirection: 'column', background: 'rgba(8, 8, 12, 0.85)', backdropFilter: 'blur(20px)' }}>
+          <div className="sidebar-container" style={{ borderRight: '1px solid var(--border-glass-purple)', display: 'flex', flexDirection: 'column', background: 'rgba(8, 8, 12, 0.85)', backdropFilter: 'blur(20px)' }}>
             <div style={{ padding: '24px 28px', borderBottom: '1px solid var(--border-glass)' }}>
               <div>
-                <h1 className="gradient-text" style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-0.03em', margin: 0 }}>Orb OS</h1>
-                <span style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', display: 'block', marginTop: '2px' }}>Premium v1.0.0</span>
+                <h1 className="gradient-text sidebar-title-text" style={{ fontSize: '28px', fontWeight: 800, letterSpacing: '-0.03em', margin: 0 }}>Orb OS</h1>
+                <h1 className="gradient-text sidebar-logo-short" style={{ margin: 0 }}>O</h1>
+                <span className="sidebar-title-text" style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', display: 'block', marginTop: '2px' }}>Premium v1.0.0</span>
               </div>
             </div>
 
             {/* Navigation spaces */}
             <div className="scroll-y" style={{ flex: 1, padding: '16px 12px' }}>
-              <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', paddingLeft: '12px', marginBottom: '8px', letterSpacing: '0.05em' }}>Spaces</div>
+              <div className="sidebar-nav-space-label" style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', paddingLeft: '12px', marginBottom: '8px', letterSpacing: '0.05em' }}>Spaces</div>
               <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <button onClick={() => setActiveTab('home')} className={`glass-button ${activeTab === 'home' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', border: 'none', background: activeTab === 'home' ? undefined : 'transparent' }}>
-                  <Home size={18} /> Dashboard Home
+                  <Home size={18} /> <span className="sidebar-nav-text">Dashboard Home</span>
                 </button>
                 <button onClick={() => setActiveTab('goals')} className={`glass-button ${activeTab === 'goals' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', border: 'none', background: activeTab === 'goals' ? undefined : 'transparent' }}>
-                  <Award size={18} /> Goals Dashboard
+                  <Award size={18} /> <span className="sidebar-nav-text">Goals Dashboard</span>
                 </button>
                 <button onClick={() => setActiveTab('tasks')} className={`glass-button ${activeTab === 'tasks' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', border: 'none', background: activeTab === 'tasks' ? undefined : 'transparent' }}>
-                  <CheckSquare size={18} /> Kanban Board
+                  <CheckSquare size={18} /> <span className="sidebar-nav-text">Kanban Board</span>
                 </button>
                 <button onClick={() => setActiveTab('schedule')} className={`glass-button ${activeTab === 'schedule' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', border: 'none', background: activeTab === 'schedule' ? undefined : 'transparent' }}>
-                  <Calendar size={18} /> Schedule Planner
+                  <Calendar size={18} /> <span className="sidebar-nav-text">Schedule Planner</span>
                 </button>
                 <button onClick={() => setActiveTab('voice')} className={`glass-button ${activeTab === 'voice' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', border: 'none', background: activeTab === 'voice' ? undefined : 'transparent' }}>
-                  <Volume2 size={18} /> Voice Reminders
+                  <Volume2 size={18} /> <span className="sidebar-nav-text">Voice Reminders</span>
                 </button>
                 <button onClick={() => setActiveTab('notes')} className={`glass-button ${activeTab === 'notes' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', border: 'none', background: activeTab === 'notes' ? undefined : 'transparent' }}>
-                  <BookOpen size={18} /> Notes Workspace
+                  <BookOpen size={18} /> <span className="sidebar-nav-text">Notes Workspace</span>
                 </button>
                 <button onClick={() => setActiveTab('analytics')} className={`glass-button ${activeTab === 'analytics' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', border: 'none', background: activeTab === 'analytics' ? undefined : 'transparent' }}>
-                  <Activity size={18} /> Analytics Center
+                  <Activity size={18} /> <span className="sidebar-nav-text">Analytics Center</span>
                 </button>
                 <button onClick={() => setActiveTab('settings')} className={`glass-button ${activeTab === 'settings' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', border: 'none', background: activeTab === 'settings' ? undefined : 'transparent' }}>
-                  <Settings size={18} /> OS Settings
+                  <Settings size={18} /> <span className="sidebar-nav-text">OS Settings</span>
                 </button>
               </nav>
             </div>
 
             {/* Active Timer status box */}
             {timerStatus === 'running' && (
-              <div style={{ margin: '16px', padding: '16px', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid var(--border-glass-purple)', borderRadius: '12px', textAlign: 'center' }}>
-                <div style={{ fontSize: '11px', color: 'var(--color-purple-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Focus Active</div>
+              <div className="sidebar-timer-box" style={{ margin: '16px', padding: '16px', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid var(--border-glass-purple)', borderRadius: '12px', textAlign: 'center' }}>
+                <div className="sidebar-timer-box-text" style={{ fontSize: '11px', color: 'var(--color-purple-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Focus Active</div>
                 <div style={{ fontSize: '20px', fontWeight: 700, margin: '4px 0', fontFamily: 'monospace' }}>
                   {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
                 </div>
-                <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Streak: {timerStreak} sessions</div>
+                <div className="sidebar-timer-box-text" style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Streak: {timerStreak} sessions</div>
               </div>
             )}
 
@@ -3318,7 +3378,7 @@ function MainDashboardApp() {
                   const gridColumns = hasCol3 ? '1.2fr 1.8fr 1.2fr' : '1.6fr 1fr';
                   
                   return (
-                    <div style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: '20px', alignItems: 'start' }}>
+                    <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: gridColumns, gap: '20px', alignItems: 'start' }}>
                       {/* COLUMN 1 */}
                       <div
                         onDragOver={handleLayoutDragOver}
@@ -4147,7 +4207,7 @@ function MainDashboardApp() {
                 </div>
 
                 {/* Kanban columns */}
-                <div style={{ display: 'grid', gridTemplateColumns: isKanbanHistoryOpen ? '1fr 1fr 1fr 300px' : '1fr 1fr 1fr', gap: '20px', flex: 1, minHeight: '400px' }}>
+                <div className="kanban-grid" style={{ display: 'grid', gridTemplateColumns: isKanbanHistoryOpen ? '1fr 1fr 1fr 300px' : '1fr 1fr 1fr', gap: '20px', flex: 1, minHeight: '400px' }}>
 
                   {/* To Do Column */}
                   <div
@@ -4181,8 +4241,8 @@ function MainDashboardApp() {
                           style={getTaskCardStyles(task)}
                           onClick={() => handleOpenTaskModal(task)}
                         >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                               <span style={{
                                 fontSize: '11px', padding: '3px 6px', borderRadius: '4px',
                                 background: getPriorityBadgeStyles(task.priority).bg,
@@ -4343,8 +4403,8 @@ function MainDashboardApp() {
                           style={getTaskCardStyles(task)}
                           onClick={() => handleOpenTaskModal(task)}
                         >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                               <span style={{
                                 fontSize: '11px', padding: '3px 6px', borderRadius: '4px',
                                 background: getPriorityBadgeStyles(task.priority).bg,
@@ -4427,7 +4487,7 @@ function MainDashboardApp() {
                             </div>
                           )}
 
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', marginTop: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', marginTop: '8px' }}>
                             <span style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -4505,8 +4565,8 @@ function MainDashboardApp() {
                           style={getTaskCardStyles(task)}
                           onClick={() => handleOpenTaskModal(task)}
                         >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                               <span style={{
                                 fontSize: '11px', padding: '3px 6px', borderRadius: '4px',
                                 background: 'rgba(16,185,129,0.15)',
@@ -4560,7 +4620,7 @@ function MainDashboardApp() {
                             </div>
                           )}
 
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
                             <span style={{
                               display: 'inline-flex',
                               alignItems: 'center',
