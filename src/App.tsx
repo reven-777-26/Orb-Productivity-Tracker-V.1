@@ -350,6 +350,8 @@ function MainDashboardApp() {
   const [state, setState] = useState<AppState | null>(null);
   const [activeTab, setActiveTab] = useState<string>('home');
   const [showSplash, setShowSplash] = useState(true);
+  const [showTour, setShowTour] = useState(false);
+  const [currentTourStep, setCurrentTourStep] = useState(0);
   const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
   const [remFormDismissKey, setRemFormDismissKey] = useState<string>('D');
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -733,6 +735,17 @@ function MainDashboardApp() {
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Onboarding tour check on load
+  useEffect(() => {
+    if (!showSplash && isLoaded && state) {
+      const completed = localStorage.getItem('orb_onboarding_completed') === 'true';
+      if (!completed) {
+        setShowTour(true);
+        setCurrentTourStep(0);
+      }
+    }
+  }, [showSplash, isLoaded, state]);
 
   // -------------------------------------------------------------
   // Dynamic State Sync with Overlay Window via IPC
@@ -2703,6 +2716,224 @@ function MainDashboardApp() {
           </div>
         )}
 
+        {/* Onboarding Walkthrough Tour Overlay */}
+        {showTour && !showSplash && (() => {
+          const tourSteps = [
+            {
+              title: "Welcome to Orb OS",
+              description: "Welcome to your new premium, futuristic desktop productivity operating system. Let's take a quick 1-minute tour to help you master your goals, tasks, scheduling, and voice reminders.",
+              targetTab: "home",
+              icon: <Sparkles size={48} style={{ color: 'var(--color-purple-light)', filter: 'drop-shadow(0 0 15px rgba(167, 139, 250, 0.6))' }} />
+            },
+            {
+              title: "1. Goals & Milestones Dashboard",
+              description: "Focus on your high-level monthly targets. Group goals by category, track your progress percentage, log achievements, and break them down into milestones.",
+              targetTab: "goals",
+              icon: <Award size={48} style={{ color: '#f59e0b', filter: 'drop-shadow(0 0 15px rgba(245, 158, 11, 0.6))' }} />
+            },
+            {
+              title: "2. The Kanban Board",
+              description: "Organize, drag, and track your daily work tasks. Drag-and-drop cards between columns, pin important items, log spent time, and manage subtasks.",
+              targetTab: "tasks",
+              icon: <CheckSquare size={48} style={{ color: '#10b981', filter: 'drop-shadow(0 0 15px rgba(16, 185, 129, 0.6))' }} />
+            },
+            {
+              title: "3. Schedule & Time-Blocking Grid",
+              description: "Block out hours for deep work. Monitor your target work hours splits, breaks logged today, and focus velocity to build consistency.",
+              targetTab: "schedule",
+              icon: <Calendar size={48} style={{ color: '#3b82f6', filter: 'drop-shadow(0 0 15px rgba(59, 130, 246, 0.6))' }} />
+            },
+            {
+              title: "4. Voice Reminders & Safety Shortcuts",
+              description: "Set Text-to-Speech voice reminders and loop alerts. If an alert loops, use your safety hotkey shortcut (default Ctrl+Shift+D) to dismiss it instantly.",
+              targetTab: "voice",
+              icon: <Volume2 size={48} style={{ color: '#ec4899', filter: 'drop-shadow(0 0 15px rgba(236, 72, 153, 0.6))' }} />
+            },
+            {
+              title: "5. Personalization & OS Settings",
+              description: "Customize your experience. Set your username, choose custom backgrounds, adjust the glowing Focus Aura thickness, and customize folder labels.",
+              targetTab: "settings",
+              icon: <Settings size={48} style={{ color: '#a78bfa', filter: 'drop-shadow(0 0 15px rgba(167, 139, 250, 0.6))' }} />
+            }
+          ];
+
+          const currentStep = tourSteps[currentTourStep];
+
+          const handleNext = () => {
+            if (currentTourStep < tourSteps.length - 1) {
+              const nextStep = currentTourStep + 1;
+              setCurrentTourStep(nextStep);
+              setActiveTab(tourSteps[nextStep].targetTab);
+            } else {
+              handleFinish();
+            }
+          };
+
+          const handlePrev = () => {
+            if (currentTourStep > 0) {
+              const prevStep = currentTourStep - 1;
+              setCurrentTourStep(prevStep);
+              setActiveTab(tourSteps[prevStep].targetTab);
+            }
+          };
+
+          const handleFinish = () => {
+            localStorage.setItem('orb_onboarding_completed', 'true');
+            setShowTour(false);
+            setActiveTab('home');
+          };
+
+          return (
+            <div style={{
+              position: 'fixed',
+              top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(3, 3, 6, 0.75)',
+              backdropFilter: 'blur(10px)',
+              zIndex: 99999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <div className="glass-panel animate-slide-up" style={{
+                width: '500px',
+                padding: '36px',
+                borderRadius: '20px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'linear-gradient(135deg, rgba(20, 20, 35, 0.75) 0%, rgba(10, 10, 18, 0.85) 100%)',
+                boxShadow: '0 25px 60px rgba(0,0,0,0.6), 0 0 40px rgba(139, 92, 246, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '24px',
+                textAlign: 'center',
+                position: 'relative'
+              }}>
+                <button
+                  type="button"
+                  onClick={handleFinish}
+                  style={{
+                    position: 'absolute',
+                    top: '20px',
+                    right: '20px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                  title="Skip tour"
+                >
+                  <X size={18} />
+                </button>
+
+                <div style={{
+                  width: '90px',
+                  height: '90px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: 'inset 0 0 20px rgba(255,255,255,0.02)',
+                  marginBottom: '6px'
+                }}>
+                  {currentStep.icon}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <h2 style={{
+                    fontSize: '24px',
+                    fontWeight: 800,
+                    margin: 0,
+                    background: 'linear-gradient(135deg, #ffffff 40%, var(--color-purple-light) 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}>
+                    {currentStep.title}
+                  </h2>
+                  <p style={{
+                    fontSize: '14px',
+                    lineHeight: '1.6',
+                    color: 'var(--text-secondary)',
+                    margin: 0,
+                    minHeight: '84px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {currentStep.description}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {tourSteps.map((_, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setCurrentTourStep(idx);
+                        setActiveTab(tourSteps[idx].targetTab);
+                      }}
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: idx === currentTourStep ? 'var(--color-purple-light)' : 'rgba(255,255,255,0.1)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        boxShadow: idx === currentTourStep ? '0 0 8px var(--color-purple-light)' : 'none'
+                      }}
+                    />
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '10px' }}>
+                  {currentTourStep > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handlePrev}
+                      className="glass-button"
+                      style={{ flex: 1, padding: '10px 18px', fontSize: '13px' }}
+                    >
+                      Back
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleFinish}
+                      className="glass-button"
+                      style={{ flex: 1, padding: '10px 18px', fontSize: '13px', borderColor: 'transparent', color: 'var(--text-muted)' }}
+                    >
+                      Skip
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="system-action-btn"
+                    style={{
+                      flex: 2,
+                      padding: '10px 18px',
+                      fontSize: '13px',
+                      background: 'linear-gradient(135deg, var(--color-purple) 0%, #7c3aed 100%)',
+                      boxShadow: '0 0 15px rgba(124, 58, 237, 0.4)',
+                      border: 'none',
+                      color: '#ffffff',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      borderRadius: '8px',
+                      transition: 'transform 0.1s active'
+                    }}
+                  >
+                    {currentTourStep === tourSteps.length - 1 ? "Finish & Start" : "Next Step"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Looping Reminder Flashing Warning Box Overlay */}
         {activeLoopingReminder && (
           <div className="strict-overlay" style={{
@@ -4663,19 +4894,7 @@ function MainDashboardApp() {
                       </div>
                     </div>
 
-                    <div className="glass-panel" style={{ padding: '24px' }}>
-                      <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Upcoming Milestones</h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
-                        <div style={{ padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', borderLeft: '3px solid var(--color-purple)' }}>
-                          <div style={{ fontWeight: 600 }}>French B2 Prep Review</div>
-                          <div style={{ color: 'var(--text-secondary)' }}>Tomorrow at 18:00</div>
-                        </div>
-                        <div style={{ padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', borderLeft: '3px solid var(--color-blue)' }}>
-                          <div style={{ fontWeight: 600 }}>Orb Desktop Release</div>
-                          <div style={{ color: 'var(--text-secondary)' }}>Wednesday at 15:00</div>
-                        </div>
-                      </div>
-                    </div>
+
                   </div>
 
                 </div>
@@ -6374,6 +6593,65 @@ function MainDashboardApp() {
                       <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
                         Orb OS offers responsive grid layouts configured in rems and HSL scales.
                       </p>
+                    </div>
+
+                    {/* Walkthrough & Support */}
+                    <div className="glass-panel" style={{ padding: '24px', marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>Walkthrough & Support</h3>
+                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                        Need a refresher on Orb OS features? Restart the interactive onboarding tour, or buy me a pizza to support development!
+                      </p>
+                      
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                          type="button"
+                          className="glass-button"
+                          style={{
+                            flex: 1,
+                            padding: '10px 16px',
+                            fontSize: '13px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            setShowTour(true);
+                            setCurrentTourStep(0);
+                            setActiveTab('home');
+                          }}
+                        >
+                          <Sparkles size={16} style={{ color: 'var(--color-purple-light)' }} />
+                          Restart Tour
+                        </button>
+
+                        <a
+                          href="https://buymeacoffee.com/reven777"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="system-action-btn"
+                          style={{
+                            flex: 1,
+                            padding: '10px 16px',
+                            fontSize: '13px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            textDecoration: 'none',
+                            background: 'linear-gradient(135deg, #FFDD00 0%, #F5A623 100%)',
+                            color: '#000000',
+                            fontWeight: 700,
+                            border: 'none',
+                            borderRadius: '8px',
+                            boxShadow: '0 0 15px rgba(245, 166, 35, 0.4)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ☕ Buy Me a Pizza
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>

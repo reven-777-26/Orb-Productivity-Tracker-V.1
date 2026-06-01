@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, screen, Notification, shell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -9,9 +9,13 @@ const __dirname = path.dirname(__filename);
 let mainWindow = null;
 let overlayWindow = null;
 let tray = null;
+let hasShownTrayNotification = false;
 
 const isDev = !app.isPackaged;
 const DB_PATH = path.join(app.getPath('userData'), 'orb_db.json');
+const ICON_PATH = isDev
+  ? path.join(__dirname, 'public/fevicon.png')
+  : path.join(__dirname, 'dist/fevicon.png');
 
 // Base64 purple-ring tray icon
 const TRAY_ICON_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAAcUlEQVQ4y2NgGAWjYBSMgoEBJgYGBhYmBqKsYKJBHUxsbOz/SXIPwz8G/yexYhQMCKAbwMjMzPifkYHhPxP5FjCjG/AfygaJYzMAtgGkhs8A3ACGfwwMDP+ZSDcANwBhAEEFmBhIsQEsQD8xMDD8JxoAAL64D9H4L/1cAAAAAElFTkSuQmCC';
@@ -26,12 +30,19 @@ function createMainWindow() {
     title: 'Orb OS',
     show: false,
     frame: true,
+    icon: ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       backgroundThrottling: false // Critical: keeps timers & speech synth running when minimized
     }
+  });
+
+  // Open external links in default browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
   });
 
   const url = isDev ? 'http://localhost:5173' : `file://${path.join(__dirname, 'dist/index.html')}`;
@@ -58,6 +69,21 @@ function createMainWindow() {
     if (!app.isQuitting) {
       event.preventDefault();
       mainWindow.hide();
+      
+      if (!hasShownTrayNotification) {
+        try {
+          if (Notification.isSupported()) {
+            new Notification({
+              title: 'Orb OS',
+              body: 'Orb is running in the background (minimized to system tray).',
+              icon: ICON_PATH
+            }).show();
+          }
+        } catch (err) {
+          console.error('Failed to show tray notification:', err);
+        }
+        hasShownTrayNotification = true;
+      }
     }
     return false;
   });
@@ -103,7 +129,7 @@ function createOverlayWindow() {
 }
 
 function createTray() {
-  const image = nativeImage.createFromDataURL(TRAY_ICON_BASE64);
+  const image = nativeImage.createFromPath(ICON_PATH).resize({ width: 16, height: 16 });
   tray = new Tray(image);
   tray.setToolTip('Orb OS');
 
